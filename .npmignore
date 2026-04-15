@@ -1,0 +1,29 @@
+# npm 패키지에서 제외할 파일들
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# git 관련
+.git/
+**/.git/
+.gitignore
+
+# Claude Code 로컬 설정
+.claude/
+**/.claude/
+
+# 참고자료 폴더
+write-prd/
+write-techspec/
+tasks/
+
+# 이진 파일 (PDF, Pages)
+**/*.pdf
+**/*.pages
+
+# 로컬 shell 설치 스크립트 (bin/install.js로 대체)
+install.sh
+
+# node
+node_modules/

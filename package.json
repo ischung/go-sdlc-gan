@@ -1,0 +1,38 @@
+{
+  "name": "claude-code-skills",
+  "version": "1.0.0",
+  "description": "소프트웨어 개발 라이프사이클(PRD→TechSpec→이슈→TDD→CI/CD) 자동화 Claude Code 스킬 패키지",
+  "author": "insang",
+  "license": "MIT",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai",
+    "skills",
+    "devops",
+    "tdd",
+    "kanban",
+    "prd",
+    "techspec",
+    "github-actions"
+  ],
+  "bin": {
+    "claude-code-skills": "./bin/install.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/insang/claude-code-skills.git"
+  },
+  "homepage": "https://github.com/insang/claude-code-skills#readme",
+  "bugs": {
+    "url": "https://github.com/insang/claude-code-skills/issues"
+  }
+}

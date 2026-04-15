@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code 로컬 설정 (배포 제외)
+.claude/
+**/.claude/
+
+# 각 스킬 내부 git 저장소
+github-kanban-skill/.git/
+write-prd-skill/.git/
+write-techspec-skill/.git/
+ci-cd-skill/.git/
+tddskill/.git/
+github-flow-imp-skill/.git/
+
+# 참고자료 폴더 (스킬 아님)
+write-prd/
+write-techspec/
+tasks/
+
+# 이진 파일 (PDF, Pages)
+**/*.pdf
+**/*.pages
+
+# node
+node_modules/
+
+# CI/CD worktree 캐시
+**/.claude/worktrees/
+
+# 로컬 설치 스크립트 (npm 패키지에서는 bin/install.js가 담당)
+install.sh

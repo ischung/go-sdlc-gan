@@ -31,10 +31,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/insang/cc-sdlc.git"
+    "url": "https://github.com/ischung/cc-sdlc.git"
   },
-  "homepage": "https://github.com/insang/cc-sdlc#readme",
+  "homepage": "https://github.com/ischung/cc-sdlc#readme",
   "bugs": {
-    "url": "https://github.com/insang/cc-sdlc/issues"
+    "url": "https://github.com/ischung/cc-sdlc/issues"
   }
 }

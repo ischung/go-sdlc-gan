@@ -6,27 +6,20 @@
 
 ---
 
-## 빠른 설치 (npx)
+## 빠른 설치
 
 ```bash
-npx cc-sdlc
+npx github:ischung/cc-sdlc
 ```
 
 설치 후 **Claude Code를 재시작**하면 모든 스킬이 활성화됩니다.
 
-### 전역 설치 (선택)
-
-```bash
-npm install -g cc-sdlc
-cc-sdlc
-```
-
 ### 기타 명령
 
 ```bash
-npx cc-sdlc list       # 설치 현황 확인
-npx cc-sdlc uninstall  # 제거
-npx cc-sdlc help       # 도움말
+npx github:ischung/cc-sdlc list       # 설치 현황 확인
+npx github:ischung/cc-sdlc uninstall  # 제거
+npx github:ischung/cc-sdlc help       # 도움말
 ```
 
 ---

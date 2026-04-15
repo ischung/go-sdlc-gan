@@ -59,7 +59,7 @@ function getSkillNames() {
 function printBanner() {
   console.log('');
   console.log(c.cyan(c.bold('╔══════════════════════════════════════════════╗')));
-  console.log(c.cyan(c.bold('║    Claude Code Skills Installer v1.0         ║')));
+  console.log(c.cyan(c.bold('║     cc-sdlc — Claude Code SDLC Skills v1.0  ║')));
   console.log(c.cyan(c.bold('╚══════════════════════════════════════════════╝')));
   console.log('');
 }

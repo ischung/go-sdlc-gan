@@ -1,5 +1,5 @@
 {
-  "name": "claude-code-skills",
+  "name": "cc-sdlc",
   "version": "1.0.0",
   "description": "소프트웨어 개발 라이프사이클(PRD→TechSpec→이슈→TDD→CI/CD) 자동화 Claude Code 스킬 패키지",
   "author": "insang",
@@ -7,6 +7,8 @@
   "keywords": [
     "claude",
     "claude-code",
+    "cc-sdlc",
+    "sdlc",
     "ai",
     "skills",
     "devops",
@@ -17,7 +19,7 @@
     "github-actions"
   ],
   "bin": {
-    "claude-code-skills": "./bin/install.js"
+    "cc-sdlc": "./bin/install.js"
   },
   "files": [
     "bin/",
@@ -29,10 +31,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/insang/claude-code-skills.git"
+    "url": "https://github.com/insang/cc-sdlc.git"
   },
-  "homepage": "https://github.com/insang/claude-code-skills#readme",
+  "homepage": "https://github.com/insang/cc-sdlc#readme",
   "bugs": {
-    "url": "https://github.com/insang/claude-code-skills/issues"
+    "url": "https://github.com/insang/cc-sdlc/issues"
   }
 }

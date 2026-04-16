@@ -163,11 +163,13 @@ open "https://github.com/settings/apps"
 
 ---
 
-# ── 워크플로우 파일 생성 ─────────────────────────────────────────────────
-# 이 코드는 Step 3(브랜치 생성) 이전, main 브랜치 위에서 실행한다.
-# 아래 두 조건 중 하나라도 해당하면 워크플로우를 재생성한다.
-#   1) 마커 파일에 v3 버전 없음 (최초 설치 / 이전 버전 마커)
-#   2) 워크플로우에 APP_ID 없음 (KANBAN_TOKEN 방식 또는 gh CLI 방식 → GitHub App으로 강제 전환)
+#### 워크플로우 파일 생성/갱신
+
+아래 두 조건 중 하나라도 해당하면 워크플로우를 재생성한다:
+1. 마커 파일에 `v3` 버전 없음 (최초 설치 / 이전 버전)
+2. `_kanban-move.yml`에 `APP_ID` 없음 (KANBAN_TOKEN 방식 → GitHub App으로 강제 전환)
+
+```bash
 # 버전 업 시 v3 → v4로 바꾸면 기존 배포 전체가 다음 /implement 실행 때 자동 갱신된다.
 if ! grep -q "^v3 " .github/.kanban-auto-done-configured 2>/dev/null || \
    ! grep -q "APP_ID" .github/workflows/_kanban-move.yml 2>/dev/null; then

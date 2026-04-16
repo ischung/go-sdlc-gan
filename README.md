@@ -73,7 +73,7 @@ gh secret set KANBAN_TOKEN --repo OWNER/REPO
 ## 2. 설치
 
 ```bash
-npx github:ischung/cc-sdlc
+npx github:ischung/go-sdlc
 ```
 
 7개 스킬, 12개 커맨드가 `~/.claude/`에 설치됩니다. 설치 후 **Claude Code를 재시작**하세요.
@@ -108,7 +108,7 @@ npx github:ischung/cc-sdlc
 ## 3. 설치 확인
 
 ```bash
-npx github:ischung/cc-sdlc list
+npx github:ischung/go-sdlc list
 ```
 
 ---
@@ -127,7 +127,7 @@ flowchart TB
         C --> D["/kanban-create<br/>/kanban-add-issues<br/>칸반 보드 구성"]
     end
     subgraph PB["Phase B — CI/CD 설계 및 자동 구현"]
-        D --> E["/cicd-pipeline<br/>CI/CD 이슈 6~7개 등록<br/><b>※ 아직 .yml 없음</b>"]
+        D --> E["/cicd-pipeline<br/>CI/CD 이슈 7~8개 등록<br/><b>※ 아직 .yml 없음</b>"]
         E --> F["/ship-all<br/>이슈 순차 처리<br/>→ .github/workflows/*.yml <b>실제 생성</b><br/>→ 기능 이슈 구현<br/>→ CI 통과 후 자동 머지"]
     end
     F --> G["배포 완료"]
@@ -143,7 +143,7 @@ flowchart TB
 | 1 | `/write-prd` | `prd.md` |
 | 2 | `/write-techspec` → `/generate-issues` | `techspec.md` + GitHub 기능 이슈 |
 | 3 | `/kanban-create` → `/kanban-add-issues` | Projects V2 보드 · Todo 컬럼 배치 |
-| 4 | `/cicd-pipeline` | **CI/CD 이슈 6~7개만 추가** (yml 파일은 아직 없음) |
+| 4 | `/cicd-pipeline` | **CI/CD 이슈 7~8개만 추가** (yml 파일은 아직 없음) |
 | 5 | `/ship-all` | CI/CD 이슈부터 실제 yml 생성 → 기능 이슈 구현 → 자동 머지 |
 
 > 단일 이슈만 처리하려면 `/ship #N`(CI 통과·자동 머지) 또는 `/implement #N`(PR 생성까지, 사람이 머지)을 사용합니다.
@@ -205,6 +205,24 @@ flowchart TB
 
 INVEST 원칙(Independent · Negotiable · Valuable · Estimable · Small · Testable)에 따라 작업 단위를 분할하여 GitHub 이슈를 생성합니다. 수락 기준(AC)이 포함된 이슈를 발행하므로 `/ship`이 바로 구현 가능한 상태로 만들어집니다.
 
+**이슈 구조 (DAG 레벨)**
+
+| 레벨 | 의미 | 담당 |
+|------|------|------|
+| **L0 — Walking Skeleton** | Hello World 수준이지만 전체 아키텍처를 관통하는 end-to-end 뼈대 | **고정 8항목** (Setup / DB / 인증 / 라우팅 / Frontend shell / 에러 핸들링 / CI-CD / 테스트 환경) |
+| **L1 — Shared Primitives** | 엔티티 스키마, 공통 유틸 | 엔티티·유틸별 독립 병렬 |
+| **L2 — Vertical Slice** | **"사용자가 …을 할 수 있다"** 단위로 DB + API + UI + Integration + Tests(Unit/Integration/Playwright E2E) 일체 | 슬라이스별 병렬 (독립 배포 가능) |
+| **L3 — Cross-slice Integration** | 슬라이스 간 교차 시나리오 · 전역 UI | 시나리오별 병렬 |
+| **L4 — Polish** | 문서, 접근성, 성능 | 완전 독립 |
+
+**L2 Vertical Slice 강제 규칙**
+
+- 제목은 반드시 `사용자가 …을 할 수 있다` 형식.
+- `[Backend] 로그인 API`, `[Frontend] 로그인 화면` 같은 **계층 분리 이슈는 L2에 허용되지 않음**. 크기를 줄이려면 사용자 가치 자체를 더 작게 쪼갭니다.
+- 모든 L2 이슈는 `@slice:<slug>` 태그가 붙은 **Playwright E2E 시나리오**를 보유 (per-PR CI Gate에서 실행).
+
+**L0 종료 조건**: `홈 → /health` Playwright 시나리오가 통과해야 L1/L2로 진입 가능합니다.
+
 ---
 
 ### `github-kanban` — 칸반 보드 관리
@@ -244,7 +262,7 @@ Todo → In Progress → Review → Done
 
 ### `ci-cd-pipeline` — CI/CD 파이프라인 이슈 생성
 
-**역할**: 프로젝트 아키텍처를 분석하여 GitHub Actions 기반 CI/CD 파이프라인 구축 이슈 6~7개를 DAG 구조로 자동 생성합니다.
+**역할**: 프로젝트 아키텍처를 분석하여 GitHub Actions 기반 CI/CD 파이프라인 구축 이슈 7~8개를 DAG 구조로 자동 생성합니다(per-PR Playwright E2E 노드 3b 포함).
 
 **커맨드**
 
@@ -274,26 +292,29 @@ Todo → In Progress → Review → Done
 
 ```
 Push / PR
-  └─ [L1] Static Analysis + Security Scan  ┐ 서로 독립 — 병렬 구현 가능
-  └─ [L1] Unit/Integration Test CI Gate   ┘
-              └─ [L2] Docker Build & Push         ┐ 서로 독립 — 병렬 구현 가능
-              └─ [L2] GitHub Pages + Smoke Test   ┘
-                          └─ [L3] Container Security Scan  ┐ 서로 독립 — 병렬 구현 가능
-                          └─ [L3] Staging 배포 + E2E Test  ┘
+  └─ [L1] Static Analysis + Security Scan           ┐
+  └─ [L1] Unit/Integration Test CI Gate              │ 서로 독립 — 병렬 구현 가능
+  └─ [L1] Playwright E2E on PR (slice별)            ┘ ← 매 PR 필수 status check
+              └─ [L2] Docker Build & Push              ┐ 서로 독립 — 병렬 구현 가능
+              └─ [L2] GitHub Pages + Smoke Test        ┘
+                          └─ [L3] Container Security Scan           ┐ 서로 독립 — 병렬 구현 가능
+                          └─ [L3] Staging 배포 + 스모크성 E2E 재실행 ┘
 ```
 
 같은 `[Ln]` 접두어를 가진 이슈는 서로 의존하지 않으므로 **팀원이 나눠서 동시에 구현**할 수 있습니다.
 
-**E2E 안전장치 (Step 0 감지 → 이슈 본문 자동 반영)**
+> **노드 3b (Playwright E2E on PR)**: 매 PR에서 브랜치명 `feature/slice-<slug>` 또는 라벨 `slice/<slug>`에서 슬라이스 ID를 추출해 `@slice:<slug>` 태그가 붙은 시나리오만 실행합니다. 크로스 브라우저(Chromium/Firefox/WebKit) 매트릭스, 10분 병렬 worker, 실패 시 screenshot+video+trace 아티팩트 업로드. 노드 6(Staging)은 `@smoke` 태그 시나리오만 재실행하여 중복을 피합니다.
 
-| 감지 결과 | 이슈에 자동 추가되는 지침 |
-|-----------|--------------------------|
+**E2E 안전장치 (Step 0 감지 → 노드 3b 이슈 본문 자동 반영)**
+
+| 감지 결과 | 노드 3b 이슈에 자동 추가되는 지침 |
+|-----------|--------------------------------|
 | CI에 E2E 단계 없음 | `npm run build → playwright install → npm run test:e2e` 추가 지침 |
 | `webServer`가 목업 HTML 대상 | 실제 devServer(`localhost:5173`)로 교체 지침 |
 | `e2e/public/*.html` 목업 파일 존재 | 목업 파일 제거/이동 및 webServer 교체 지침 |
-| E2E 자체 없음 | Playwright 설치 및 기본 테스트 스크립트 생성 지침 |
+| E2E 자체 없음 | Playwright 설치 및 기본 테스트 스크립트 생성 지침. L0-8 Walking Skeleton 이슈가 이미 있으면 그 위에 PR-트리거 워크플로우·브라우저 매트릭스만 추가 |
 
-> **비유**: CI 파이프라인 이슈를 생성하면서, E2E 테스트가 가짜 페이지를 검사하고 있는 문제를 미리 감지하여 수정 지침을 이슈에 담아줍니다.
+> **비유**: CI 파이프라인 이슈를 생성하면서, E2E 테스트가 가짜 페이지를 검사하고 있는 문제를 미리 감지하여 **노드 3b**(PR 단계) 이슈에 수정 지침을 담아줍니다.
 
 **실행 시점 권장**: 칸반 보드 생성 직후, 첫 `/implement` 이전 (Shift Left 원칙)
 
@@ -514,7 +535,7 @@ flowchart LR
     B -->|/write-techspec| C[techspec.md]
     C -->|/generate-issues| D[GitHub 이슈]
     D -->|/kanban-create| E[칸반 보드]
-    E -->|/cicd-pipeline| F[CI/CD 이슈 7개]
+    E -->|/cicd-pipeline| F[CI/CD 이슈 8개]
     F -->|/ship-all| G[구현 + CI/CD 통과 + 자동 머지]
     G --> H[배포 완료]
 ```
@@ -527,7 +548,7 @@ flowchart LR
 3단계: /generate-issues    → GitHub 이슈 자동 등록
 4단계: /kanban-create      → 칸반 보드 생성
 5단계: /kanban-add-issues  → 이슈를 보드 Todo에 배치
-6단계: /cicd-pipeline      → CI/CD 파이프라인 이슈 7개 생성
+6단계: /cicd-pipeline      → CI/CD 파이프라인 이슈 8개 생성
 7단계: /ship-all           → [L0]→[L1]→[L2]→[L3]→기능 이슈 순서로 전체 자동화
        /ship               → 단일 이슈 CI/CD 통과 + 자동 머지
        /implement          → 단일 이슈 PR 생성까지 (사람이 리뷰 후 머지)
@@ -540,10 +561,10 @@ flowchart LR
 
 ```bash
 # 전역 제거
-npx github:ischung/cc-sdlc uninstall
+npx github:ischung/go-sdlc uninstall
 
 # 프로젝트 스코프 제거
-npx github:ischung/cc-sdlc uninstall --project
+npx github:ischung/go-sdlc uninstall --project
 ```
 
 제거 후 Claude Code를 재시작하면 스킬이 비활성화됩니다.
@@ -555,9 +576,9 @@ npx github:ischung/cc-sdlc uninstall --project
 | 스킬 | 커맨드 | 한 줄 설명 |
 |------|--------|-----------|
 | **write-prd** | `/write-prd` | 시니어 PM 코치가 1:1 대화로 PRD 8단계 완성 |
-| **write-techspec** | `/write-techspec` `/generate-issues` | PRD → TechSpec 작성 + INVEST 원칙 이슈 자동 발행 |
+| **write-techspec** | `/write-techspec` `/generate-issues` | PRD → TechSpec 작성 + Walking Skeleton · Vertical Slice · per-PR Playwright E2E 구조로 이슈 자동 발행 |
 | **github-kanban** | `/kanban-create` `/kanban-add-issues` `/kanban-status` | GitHub Projects 칸반 보드 자동 구성 및 조회 |
-| **ci-cd-pipeline** | `/cicd-pipeline` | E2E 안전장치 포함 CI/CD 이슈 7개 DAG 구조로 자동 생성 |
+| **ci-cd-pipeline** | `/cicd-pipeline` | per-PR Playwright E2E(노드 3b) + 스모크성 재실행 포함, 8개 이슈 DAG 구조로 자동 생성 |
 | **tdd** | `/tdd` | Red→Green→Refactor 사이클 TDD 페어 프로그래밍 |
 | **github-flow-impl** | `/implement` `/impl` | 이슈 구현 → PR 생성 (E2E 이슈 시 테스트 자동 생성 포함) |
 | **auto-ship** | `/ship` `/ship-all` | 구현 + CI/CD 피드백 루프 + 자동 squash 머지 end-to-end 자동화 |

@@ -130,6 +130,11 @@ git checkout -b BRANCH_NAME
 
 ## Step 4 — 코드 구현
 
+이슈가 E2E 관련인 경우(제목·본문에 `e2e`, `playwright`, `cypress`, `end-to-end` 포함),
+`github-flow-impl` 스킬의 **Step 4-0(E2E 이슈 감지 및 앱 분석)** 서브스텝을 먼저 실행하여
+앱 라우트·컴포넌트·dev 서버 정보를 분석하고 playwright 테스트 파일을 자동 생성한다.
+테스트 파일 생성 완료 후 아래 일반 구현 절차를 이어서 진행한다.
+
 `github-flow-impl` 스킬의 Step 4와 동일한 방식으로 진행한다:
 - 프로젝트 구조 파악 (기존 코드 컨벤션 준수)
 - 이슈의 수락 기준(AC) 또는 이슈 설명을 기준으로 구현
@@ -149,7 +154,7 @@ npm test 2>/dev/null || yarn test 2>/dev/null || true
 
 ---
 
-## Step 6 — PR 생성 및 Review 이동
+## Step 6 — PR 생성
 
 ```bash
 git add -A
@@ -174,16 +179,6 @@ Closes #ISSUE_NUMBER" \
 ```
 
 `PR_URL`을 이후 단계에서 사용할 수 있도록 저장한다.
-
-PR 생성 후 칸반을 Review로 이동한다:
-
-```bash
-gh project item-edit \
-  --id ITEM_ID \
-  --field-id STATUS_FIELD_ID \
-  --project-id PROJECT_ID \
-  --single-select-option-id REVIEW_OPTION_ID
-```
 
 ---
 
@@ -288,6 +283,18 @@ echo "$FAILED_LOG"
 - 어떤 테스트/빌드 단계에서 실패했는지 (step 이름)
 - 실패한 파일 경로와 줄 번호
 
+추가로 아래 **구조적 실패 패턴**을 우선 확인한다:
+
+| 패턴 | 감지 방법 | 자동 수정 방법 |
+|------|-----------|---------------|
+| `package-lock.json` 없음 | 로그에 "Dependencies lock file is not found" | `npm install` 실행 후 `package-lock.json` 커밋 |
+| CI에 E2E 단계 누락 | `.github/workflows/*.yml`에 `test:e2e` / `playwright` 키워드 없음 | CI yml에 `Build → playwright install → test:e2e` 단계 추가 |
+| E2E가 목업 HTML을 대상으로 함 | `playwright.config.*`의 `webServer.url`이 `file://` 이거나 `webServer` 자체 없음, 또는 `e2e/public/*.html` 파일 존재 | `playwright.config`의 `webServer`를 실제 앱 devServer(`npm run dev`, `localhost:5173`)로 교체 |
+| Build 없이 E2E 실행 | CI yml에서 E2E 단계가 Build 이전에 위치 | CI yml에서 E2E 단계를 Build 단계 이후로 이동 |
+| Import / 모듈 누락으로 빌드 실패 | 로그에 `Cannot find module`, `Module not found`, `is not defined` | 해당 파일의 import 구문 추가 또는 경로 수정 |
+
+E2E 관련 패턴이 감지되면 **코드 수정에 앞서 CI yml과 playwright.config를 먼저 수정**한다. 소스 코드 버그보다 파이프라인 구조 문제가 더 근본적이기 때문이다.
+
 **③ 코드 수정**
 
 분석 결과를 바탕으로 관련 소스 파일을 수정한다.
@@ -338,9 +345,23 @@ FAILED_LOG_SUMMARY (최대 20줄)
 
 ---
 
-## Step 8 — 완료 보고
+## Step 8 — 자동 머지 및 완료 보고
 
-CI/CD 전체 통과 시:
+CI/CD 전체 통과 시, 즉시 PR을 자동으로 머지한다:
+
+```bash
+gh pr merge "$PR_URL" --squash --delete-branch
+```
+
+머지 실패(브랜치 보호 규칙 등)한 경우 아래를 출력하고 사용자에게 수동 머지를 요청한다:
+
+```
+⚠️  자동 머지 실패: 브랜치 보호 규칙 또는 권한 문제
+   PR: PR_URL
+   수동으로 머지해 주세요.
+```
+
+머지 성공 시:
 
 ```
 ✅ Ship 완료!
@@ -350,8 +371,7 @@ CI/CD 전체 통과 시:
 🔗 PR:     PR_URL
 🔁 재시도: RETRY_COUNT회
 ✔️  CI/CD:  전체 통과
-
-📬 PR을 리뷰 후 머지하면 칸반이 자동으로 Done으로 이동합니다.
+🔀 머지:   자동 squash 머지 완료 → 칸반 Done 자동 이동
 ```
 
 ---
@@ -362,7 +382,7 @@ CI/CD 전체 통과 시:
 - 로컬 테스트가 실패한 상태에서 push하지 않는다.
 - 재시도 최대 3회 초과 시 자동 수정을 중단하고 사용자에게 보고한다.
 - `gh` CLI와 `git`만 사용한다.
-- PR 머지는 사용자가 직접 수행한다 (자동 머지 금지).
+- CI/CD 통과 후 자동으로 squash 머지한다. 머지 실패 시에만 사용자에게 수동 머지를 요청한다.
 
 ## Prerequisites
 

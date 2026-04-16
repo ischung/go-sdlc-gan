@@ -495,6 +495,128 @@ git checkout -b BRANCH_NAME
 
 ## Step 4 — 코드 구현
 
+### Step 4-0 — E2E 이슈 감지 및 앱 분석 (E2E 관련 이슈 전용)
+
+**감지**:
+
+```bash
+IS_E2E=false
+echo "$ISSUE_TITLE $ISSUE_BODY" | grep -iEq "e2e|playwright|cypress|end.to.end|end-to-end" \
+  && IS_E2E=true || true
+echo "$ISSUE_LABELS" | grep -iEq "e2e|playwright" && IS_E2E=true || true
+```
+
+`IS_E2E=false`이면 이 서브스텝을 건너뛰고 일반 구현(아래)으로 진행한다.
+
+**① dev 서버 명령·포트 파악**
+
+```bash
+node -e "const p=require('./package.json'); console.log(JSON.stringify(p.scripts, null, 2))"
+```
+
+`scripts.dev` 또는 `scripts.start`에서 DEV_CMD, DEV_PORT를 추출한다.
+포트 우선순위: `--port` 옵션 > `PORT=` 환경변수 > Vite 기본값(5173) > CRA 기본값(3000).
+
+**② React Router 라우트 추출**
+
+```bash
+grep -rn "path=" src/ --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" \
+  2>/dev/null | grep -v "node_modules\|//\|test\|spec" | head -30
+grep -rn "createBrowserRouter\|createHashRouter\|RouteObject" src/ 2>/dev/null | head -5
+```
+
+추출된 path 값들을 ROUTES 목록으로 정리한다.
+
+**③ CRUD/인증 컴포넌트 확인**
+
+```bash
+ls src/pages/ src/views/ src/screens/ 2>/dev/null | head -20
+```
+
+`Create|List|Edit|Delete|Form|Table` → CRUD 플로우 감지
+`Login|Auth|SignIn|Register` → 인증 플로우 감지
+
+**④ 기존 E2E 설정 확인**
+
+```bash
+cat playwright.config.ts 2>/dev/null || cat playwright.config.js 2>/dev/null || echo "NO_CONFIG"
+find . \( -path "*/e2e/**/*.spec.*" -o -path "*/tests/e2e/**/*.spec.*" \) \
+  | grep -v node_modules | head -10
+find . -type d \( -name "e2e" -o -name "playwright" \) | grep -v node_modules | head -5
+```
+
+**⑤ 테스트 파일 위치 결정**
+
+기존 `e2e/tests/` → 그 안에 생성 / 기존 `tests/e2e/` → 그 안에 생성 / 없으면 → `tests/e2e/` (기본값)
+
+**⑥ `playwright.config.ts` 생성/수정**
+
+`webServer`가 없거나 목업 대상이면 아래 내용으로 생성/교체한다.
+`webServer.command` = DEV_CMD, `webServer.url` = `http://localhost:DEV_PORT`, `testDir` = ⑤의 경로
+
+```typescript
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',        // ⑤에서 결정된 경로로 교체
+  timeout: 30_000,
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  reporter: 'html',
+  use: {
+    baseURL: 'http://localhost:5173',  // DEV_PORT로 교체
+    trace: 'on-first-retry',
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: {
+    command: 'npm run dev',       // DEV_CMD로 교체
+    url: 'http://localhost:5173', // DEV_PORT로 교체
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+**⑦ `app.spec.ts` 생성 — 최소 시나리오**
+
+분석 결과를 바탕으로 아래 시나리오를 포함하는 테스트 파일을 생성한다.
+
+| 조건 | 시나리오 |
+|------|---------|
+| 항상 | 메인 페이지 로딩: `page.goto('/')` 후 타이틀 존재 확인 |
+| 항상 | 라우트 접근성: ROUTES 각 path에 goto 후 404 아님 확인 |
+| CRUD 감지 시 | 목록 → 생성 버튼 → 폼 표시 확인 |
+| 인증 감지 시 | 로그인 페이지 UI(입력 필드, 제출 버튼) 확인 |
+
+셀렉터는 `data-testid`, `aria-label`, 텍스트 기반 순으로 실제 앱에서 확인 후 사용한다.
+
+**⑧ `package.json` test:e2e 스크립트 추가**
+
+```bash
+node -e "const p=require('./package.json'); console.log(p.scripts['test:e2e'] || 'MISSING')"
+```
+
+`MISSING`이면 `"test:e2e": "playwright test"`를 scripts에 추가한다.
+
+**⑨ CI E2E 단계 추가**
+
+```bash
+grep -rn "test:e2e\|playwright" .github/workflows/ 2>/dev/null || echo "CI_E2E_MISSING"
+```
+
+`CI_E2E_MISSING`이면 기존 CI yml의 build 단계 이후에 추가한다:
+
+```yaml
+- name: Install Playwright browsers
+  run: npx playwright install --with-deps chromium
+- name: Run E2E tests
+  run: npm run test:e2e
+```
+
+---
+
+### Step 4-1 — 일반 구현 (모든 이슈 공통)
+
 먼저 프로젝트 구조를 파악한다:
 
 ```bash

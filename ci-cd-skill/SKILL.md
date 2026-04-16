@@ -111,6 +111,16 @@ find . -type d -name "e2e" -o -name "cypress" -o -name "playwright" \
   | grep -v node_modules | grep -v .git | head -5
 ```
 
+```bash
+# E2E webServer 설정 확인 — 실제 앱을 대상으로 하는지 검사
+cat playwright.config.ts playwright.config.js 2>/dev/null | grep -A5 "webServer" || echo "webServer 설정 없음"
+# 목업 HTML 존재 여부 확인
+find . -path "*/e2e/public/*.html" -o -path "*/e2e/*.html" \
+  | grep -v node_modules | grep -v .git | head -5
+# CI 워크플로우에 E2E 단계 포함 여부 확인
+grep -r "test:e2e\|playwright\|cypress" .github/workflows/ 2>/dev/null || echo "CI에 E2E 없음"
+```
+
 위 분석 결과를 바탕으로 다음 항목들의 존재 여부를 정리한다:
 
 | 항목 | 존재 여부 | 비고 |
@@ -120,6 +130,8 @@ find . -type d -name "e2e" -o -name "cypress" -o -name "playwright" \
 | Integration Test | O/X | 디렉토리/설정파일 |
 | Docker 설정 | O/X | Dockerfile 등 |
 | E2E 테스트 | O/X | 프레임워크명 |
+| E2E가 CI에 포함됨 | O/X | CI yml에 test:e2e/playwright 존재 여부 |
+| E2E webServer가 실제 앱 대상 | O/X | playwright.config의 webServer.url이 실제 devServer인지, 목업 HTML인지 |
 | GitHub Pages 설정 | O/X | - |
 
 ---
@@ -135,8 +147,19 @@ find . -type d -name "e2e" -o -name "cypress" -o -name "playwright" \
 3. CI 파이프라인 구축 — Unit Test 및 Integration Test 단계 (CI Gate)
 4. CD 파이프라인 구축 — Docker Build 및 Push (불변 이미지, 레이어 캐싱)
 5. CD 파이프라인 구축 — Container Security Scan
-6. CD 파이프라인 구축 — Staging 환경 배포 및 E2E 테스트
+6. CD 파이프라인 구축 — Staging 환경 배포 및 E2E 테스트 (실제 앱 대상 필수)
 7. CD 파이프라인 구축 — GitHub Pages 정적 배포 및 Smoke Test
+
+**E2E Gap Analysis — 이슈 6 생성 전 필수 확인**:
+
+Step 0의 E2E 감지 결과에 따라 노드 6 이슈 본문에 아래 조건을 반드시 반영한다:
+
+| 감지 결과 | 이슈 본문에 추가할 내용 |
+|-----------|------------------------|
+| CI yml에 E2E 단계 없음 | "CI에 Build 후 E2E 단계를 추가한다 (`npm run build` → `playwright install` → `npm run test:e2e`)" 명시 |
+| `playwright.config`의 `webServer`가 없거나 목업 HTML 대상 | "`webServer.command`를 실제 앱 개발 서버 (`npm run dev` 등)로 교체하고, `url`을 `http://localhost:5173`(또는 실제 포트)으로 설정한다" 명시 |
+| `e2e/public/*.html` 목업 파일 존재 | "목업 HTML 대신 실제 앱을 기동하여 E2E를 실행하도록 `playwright.config` 교체가 필요하다" 명시 |
+| E2E 자체가 없음 | "Playwright 설치 및 기본 테스트 스크립트 생성" 명시 (기존 조건부 요건과 동일) |
 
 **조건부 요건 (별도 이슈를 생성하지 않고 기존 이슈 본문에 흡수)**:
 
@@ -311,8 +334,30 @@ create_issue 5 "L3" "CD" \
 
 ```bash
 create_issue 6 "L3" "CD" \
-  " Staging 환경 배포 및 E2E 테스트 자동화 구축" \
-  "Docker 이미지 빌드 완료 후 Staging 환경에 자동으로 배포하고 E2E 테스트를 수행하는 파이프라인을 구축한다. E2E 테스트 환경이 없다면 Playwright를 설치하고 tests/e2e 디렉토리에 기본 테스트 스크립트를 생성한다. 기본 E2E 테스트는 메인 페이지 접근 가능 여부, 핵심 사용자 플로우 동작 확인 등 최소한의 시나리오를 포함한다. E2E 테스트 실패 시 Production 배포를 차단하도록 파이프라인 게이트를 설정한다. 교육용 프로젝트로 별도 Staging 서버가 없는 경우 Docker 컨테이너를 Actions runner 위에서 임시로 기동하고 Playwright로 해당 컨테이너에 접근하는 방식으로 대체 가능하다. 본 이슈는 노드 5(Container Scan)와 독립적이므로 병렬 진행 가능하다." \
+  " Staging 환경 배포 및 E2E 테스트 자동화 구축 (실제 앱 대상)" \
+  "Docker 이미지 빌드 완료 후 Staging 환경에 자동으로 배포하고 E2E 테스트를 수행하는 파이프라인을 구축한다.
+
+[E2E 대상 원칙] E2E 테스트는 반드시 실제 앱(React, Vue, Express 등 개발 서버 또는 빌드 결과물)을 대상으로 해야 한다. 바닐라 JS 목업 HTML(e2e/public/index.html 등)을 대상으로 하는 E2E는 실제 앱의 런타임 오류(import 누락, 타입 에러 등)를 검출할 수 없으므로 허용하지 않는다.
+
+[playwright.config 설정] playwright.config.ts의 webServer 항목을 아래와 같이 실제 앱 개발 서버로 설정한다.
+  webServer: {
+    command: 'npm run dev',  // 실제 앱 기동 명령
+    url: 'http://localhost:5173',  // 실제 앱 포트
+    reuseExistingServer: !process.env.CI,
+  }
+풀스택 프로젝트(클라이언트+서버)라면 'npm run dev:client & npm run dev:server' 형식으로 두 프로세스를 함께 기동한다.
+
+[CI 파이프라인 단계] CI yml에 E2E를 추가할 때는 반드시 아래 순서를 지킨다.
+  1. npm run build  (빌드 실패 자체가 첫 번째 게이트)
+  2. npx playwright install --with-deps chromium
+  3. npm run test:e2e  (빌드 결과물 또는 dev server 대상)
+E2E 단계가 CI에 없으면 이 단계에서 추가한다.
+
+[e2e/public 목업 처리] e2e/public/index.html 등 독립 목업 파일이 존재하면 playwright.config의 webServer를 실제 앱으로 교체하고 목업 파일을 제거하거나 별도 디렉토리로 이동한다.
+
+[앱 분석 기반 테스트 생성 방법] 구현 담당자는 다음 순서로 앱을 분석하여 테스트를 생성한다. 1) package.json scripts.dev에서 dev 서버 기동 명령과 포트를 파악한다. 2) src/에서 React Router path= 또는 createBrowserRouter route 객체를 추출하여 테스트할 URL 목록을 확보한다. 3) src/pages/, src/views/에서 CRUD 관련(Create/List/Edit/Delete)과 인증 관련(Login/Auth) 컴포넌트를 확인한다. 4) 분석 결과를 바탕으로 최소 시나리오(메인 로딩, 라우트 접근성, CRUD/인증 플로우)를 포함하는 tests/e2e/app.spec.ts를 생성한다. 5) playwright.config.ts의 webServer를 실제 dev 서버로 설정하고, CI에 Build → playwright install → E2E 단계를 추가한다.
+
+E2E 테스트 환경이 아예 없다면 Playwright를 설치하고 tests/e2e 디렉토리에 기본 시나리오(메인 페이지 로딩, 핵심 플로우)를 포함한 스크립트를 생성한다. E2E 테스트 실패 시 Production 배포를 차단하도록 파이프라인 게이트를 설정한다. 교육용 프로젝트로 별도 Staging 서버가 없는 경우 Docker 컨테이너를 Actions runner 위에서 임시로 기동하고 Playwright로 해당 컨테이너에 접근하는 방식으로 대체 가능하다. 본 이슈는 노드 5(Container Scan)와 독립적이므로 병렬 진행 가능하다." \
   "ci/cd,cd,testing,e2e" \
   "4"
 ```
@@ -483,6 +528,9 @@ CI/CD 파이프라인 이슈 생성 완료
 - Dependency 캐싱 및 Docker Layer Caching 전략을 이슈 내용에 반드시 포함한다
 - Unit Test 또는 Integration Test가 없으면 생성 이슈를 추가한다
 - E2E 테스트 환경이 없으면 Playwright 기반 환경 구축 이슈를 추가한다
+- **E2E는 반드시 실제 앱(devServer 또는 빌드 결과물)을 대상으로 해야 한다.** 바닐라 JS 목업 HTML이나 별도 mock 페이지를 대상으로 하는 E2E 설정은 허용하지 않는다. Step 0에서 목업 대상 E2E가 감지되면 노드 6 이슈에 교체 지침을 반드시 포함한다.
+- **CI에 E2E 단계가 없으면 허용하지 않는다.** Step 0에서 CI yml에 E2E가 없음이 감지되면 노드 6 이슈에 CI E2E 단계 추가 지침을 반드시 포함한다.
+- CI의 E2E 단계는 반드시 Build 이후에 위치해야 한다 (`npm run build` → Playwright install → `npm run test:e2e` 순서).
 
 ## Prerequisites
 

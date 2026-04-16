@@ -54,12 +54,11 @@ gh project list --owner OWNER --format json
 
 > **이 단계를 생략하면 PR 오픈/머지 후 칸반 카드가 자동으로 이동하지 않는다. 반드시 실행한다.**
 >
-> ⚠️ **사전 조건**: GitHub Actions가 `gh project` 명령을 실행하려면 기본 `GITHUB_TOKEN`이 아닌
-> **`project` 스코프를 포함한 PAT**가 필요하다. 아래 순서로 한 번만 설정한다:
-> 1. https://github.com/settings/tokens 에서 PAT 생성 (`project` 스코프 체크)
-> 2. 저장소 Settings → Secrets and variables → Actions → **`KANBAN_TOKEN`** 이름으로 등록
+> ℹ️ **GitHub App 설정은 자동화됨**: `APP_ID` 시크릿이 없으면 아래 스크립트가
+> 브라우저를 열고 입력을 안내한다. 사용자는 **앱 이름 입력 + Create 버튼 클릭 1회**만 하면 된다.
+> 이후 App ID 입력, .pem 경로 입력, 시크릿 등록, 앱 설치까지 자동 처리된다.
 
-마커 파일 `.github/.kanban-auto-done-configured`가 없으면 아래 자동화를 설정한다.
+마커 파일 `.github/.kanban-auto-done-configured`에 `v3` 버전이 없거나 구버전 워크플로우가 감지되면 아래 자동화를 설정한다.
 
 > **핵심 원칙**: 워크플로우 파일은 **feature 브랜치가 아닌 main에 직접 커밋**해야 한다.
 > GitHub Actions는 base 브랜치(main)에 있는 워크플로우만 실행하기 때문에,
@@ -71,30 +70,111 @@ gh project list --owner OWNER --format json
 - `kanban-auto-done.yml` — PR 머지 시 Done 이동
 
 ```bash
+# ── 헬퍼: 브라우저 열기 (macOS / Linux / Windows Git Bash 대응) ──────────
+_open_url() {
+  local url="$1"
+  if command -v open &>/dev/null; then
+    open "$url"
+  elif command -v xdg-open &>/dev/null; then
+    xdg-open "$url"
+  elif command -v start &>/dev/null; then
+    start "$url"
+  else
+    echo "   👉 브라우저에서 직접 열기: $url"
+  fi
+}
+
+# ── GitHub App 시크릿 자동 설정 (APP_ID 미등록 시에만 실행) ──────────────
+if ! gh secret list --repo "$OWNER/$REPO" 2>/dev/null | grep -q "^APP_ID"; then
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "📱 GitHub App 설정 (최초 1회 — 이후 자동 처리됨)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # ── 1단계: App 생성 페이지 열기 ────────────────────────────────────────
+  echo "1단계: 브라우저에서 GitHub App을 생성합니다."
+  echo "       아래 설정으로 입력하고 'Create GitHub App'을 클릭하세요:"
+  echo ""
+  echo "       · App name      : 원하는 이름 (예: $REPO-kanban-bot)"
+  echo "       · Homepage URL  : https://github.com/$OWNER/$REPO"
+  echo "       · Webhook       : Active 체크 해제"
+  echo "       · Permissions   :"
+  echo "           Repository > Issues         : Read & Write"
+  echo "           Repository > Pull requests  : Read-only"
+  echo "           Account    > Projects       : Read & Write"
+  echo "       · Where can this be installed   : Only on this account"
+  echo ""
+  _open_url "https://github.com/settings/apps/new"
+  read -rp "   앱 생성 완료 후 Enter를 누르세요..."
+
+  # ── 2단계: App ID 입력 ──────────────────────────────────────────────────
+  echo ""
+  echo "2단계: 생성된 앱의 App ID를 입력합니다."
+  echo "       (앱 페이지 상단 'App ID: XXXXXXX' 에서 확인)"
+  read -rp "   App ID: " _APP_ID_INPUT
+  if [ -z "$_APP_ID_INPUT" ]; then
+    echo "❌ App ID가 입력되지 않았습니다. 중단합니다."
+    exit 1
+  fi
+
+  # ── 3단계: Private Key 생성 & .pem 경로 입력 ────────────────────────────
+  echo ""
+  echo "3단계: Private Key를 생성하고 .pem 파일을 다운로드합니다."
+  echo "       앱 설정 페이지 → 'Private keys' 섹션 → 'Generate a private key'"
+  _open_url "https://github.com/settings/apps"
+  echo ""
+  read -rp "   다운로드한 .pem 파일의 전체 경로: " _PEM_PATH
+  _PEM_PATH="${_PEM_PATH/#\~/$HOME}"   # ~ 를 $HOME 으로 확장
+
+  if [ ! -f "$_PEM_PATH" ]; then
+    echo "❌ 파일을 찾을 수 없습니다: $_PEM_PATH"
+    exit 1
+  fi
+
+  # ── 4단계: Repository Secrets 등록 ─────────────────────────────────────
+  echo ""
+  echo "4단계: Repository Secrets를 등록합니다..."
+  gh secret set APP_ID --body "$_APP_ID_INPUT" --repo "$OWNER/$REPO"
+  gh secret set APP_PRIVATE_KEY < "$_PEM_PATH" --repo "$OWNER/$REPO"
+  echo "   ✅ APP_ID, APP_PRIVATE_KEY 등록 완료"
+
+  # ── 5단계: 앱을 저장소에 Install ────────────────────────────────────────
+  echo ""
+  echo "5단계: 앱을 저장소에 설치합니다."
+  echo "       앱 설정 페이지 → 'Install App' 탭 → 저장소 선택"
+  _open_url "https://github.com/settings/apps"
+  read -rp "   앱 설치 완료 후 Enter를 누르세요..."
+
+  echo ""
+  echo "✅ GitHub App 설정 완료 (APP_ID, APP_PRIVATE_KEY 등록됨)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+fi
+
+# ── 워크플로우 파일 생성 ─────────────────────────────────────────────────
 # 이 코드는 Step 3(브랜치 생성) 이전, main 브랜치 위에서 실행한다.
-# 마커 파일이 없거나, 워크플로우가 구버전(repositoryOwner 미사용)이면 재생성한다.
-if [ ! -f ".github/.kanban-auto-done-configured" ] || \
-   ! grep -q "repositoryOwner" .github/workflows/_kanban-move.yml 2>/dev/null; then
+# 아래 두 조건 중 하나라도 해당하면 워크플로우를 재생성한다.
+#   1) 마커 파일에 v3 버전 없음 (최초 설치 / PAT 구버전 / 이전 버전 마커)
+#   2) 워크플로우에 APP_ID 없음 (PAT 방식 구버전 — GH_TOKEN 오류 원인)
+# 버전 업 시 v3 → v4로 바꾸면 기존 배포 전체가 다음 /implement 실행 때 자동 갱신된다.
+if ! grep -q "^v3 " .github/.kanban-auto-done-configured 2>/dev/null || \
+   ! grep -q "APP_ID" .github/workflows/_kanban-move.yml 2>/dev/null; then
   echo "🔧 칸반 자동화 설정 중 (신규 또는 구버전 업그레이드)..."
 
   mkdir -p .github/workflows
 
   # ── 1) 공통 reusable workflow ──────────────────────────────────────
   cat > .github/workflows/_kanban-move.yml << 'GHACTIONS'
-# 재사용 가능한 공통 워크플로우 — 칸반 이슈 상태 이동
-# Secret 이름을 바꾸려면 이 파일의 secrets.KANBAN_TOKEN 한 곳만 수정하면 됩니다.
+# 재사용 가능한 공통 워크플로우 — 칸반 이슈 상태 이동 (GitHub App 방식)
 #
-# 필수 사전 설정:
-#   저장소 Settings → Secrets → KANBAN_TOKEN 에
-#   'project' 스코프를 포함한 PAT를 등록해야 합니다.
-#   (GITHUB_TOKEN은 project 스코프가 없어 gh project 명령이 실패합니다)
+# 필수 사전 설정 (저장소 Secrets):
+#   APP_ID          — GitHub App의 App ID 숫자값
+#   APP_PRIVATE_KEY — GitHub App의 Private Key (.pem 파일 전체 내용)
 #
 # [보안] PR 본문을 workflow input으로 전달하지 않고 API로 직접 조회합니다.
-#   이유: ${{ github.event.pull_request.body }}를 with.pr_body로 넘기면
-#         GitHub Actions expression 평가 시 PR 본문 내 특수문자/표현식이
-#         셸 명령으로 해석될 수 있습니다 (expression injection).
-#         pr_number(숫자)만 전달하고 본문은 Node.js(actions/github-script)로
-#         REST API를 통해 안전하게 문자열로 읽습니다.
+#   pr_number(숫자)만 전달하고 본문은 Node.js(actions/github-script)로
+#   REST API를 통해 안전하게 문자열로 읽습니다. (expression injection 방지)
 name: Kanban — Move Issue Status (Reusable)
 
 on:
@@ -109,13 +189,22 @@ on:
         required: true
         type: number
     secrets:
-      KANBAN_TOKEN:
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
         required: true
 
 jobs:
   move:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Move linked issues to ${{ inputs.status }}
         uses: actions/github-script@v7
         env:
@@ -123,7 +212,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           KANBAN_PROJECT_NUMBER: ${{ vars.KANBAN_PROJECT_NUMBER }}
         with:
-          github-token: ${{ secrets.KANBAN_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const targetStatus = process.env.TARGET_STATUS;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
@@ -250,8 +339,8 @@ jobs:
     secrets: inherit
 GHACTIONS
 
-  # ── 마커 파일 생성 (중복 설정 방지) ─────────────────────────────
-  echo "configured $(date -u +%Y-%m-%dT%H:%M:%SZ)" > .github/.kanban-auto-done-configured
+  # ── 마커 파일 생성 (버전 포함 — 다음 버전 업 시 v3 → v4로만 바꾸면 됨) ──
+  echo "v3 configured $(date -u +%Y-%m-%dT%H:%M:%SZ)" > .github/.kanban-auto-done-configured
 
   # ── main에 직접 커밋 & 푸시 (feature 브랜치 생성 전에 반드시 실행) ──
   git add .github/workflows/_kanban-move.yml \
@@ -267,7 +356,7 @@ GHACTIONS
   echo "   · kanban-auto-review.yml → PR 오픈 시 Review 이동"
   echo "   · kanban-auto-done.yml   → PR 머지 시 Done 이동"
   echo "   💡 PR 본문에 'Closes #이슈번호'를 포함하면 자동으로 이동합니다."
-  echo "   ⚠️  secrets.KANBAN_TOKEN 미설정 시 Actions 실행 시 오류 발생합니다."
+  echo "   ⚠️  secrets.APP_ID / APP_PRIVATE_KEY 미설정 시 Actions 실행 시 오류 발생합니다."
 fi
 ```
 

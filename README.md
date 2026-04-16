@@ -117,15 +117,36 @@ npx github:ischung/cc-sdlc list
 
 ### 권장 실행 순서
 
+모든 스킬은 **기획 → 이슈 등록 → 자동 구현** 순서로 사용하도록 설계되어 있습니다. 특히 CI/CD 생성은 "**설계(이슈로 분해)**"와 "**구현(yml 파일 생성)**"이 **분리된 2단계**라는 점에 주의하세요.
+
 ```mermaid
-flowchart LR
-    A[/write-prd\n기획] --> B[/write-techspec\n설계]
-    B --> C[/generate-issues\n기능 이슈]
-    C --> D[/kanban-create\n칸반 보드]
-    D --> E[/cicd-pipeline\nCI/CD 이슈]
-    E --> F[/ship-all\n전체 자동화]
-    F --> G[배포 완료]
+flowchart TB
+    subgraph PA["Phase A — 기획 · 이슈 등록"]
+        A["/write-prd<br/>기획 문서"] --> B["/write-techspec<br/>기술 명세"]
+        B --> C["/generate-issues<br/>기능 이슈 등록"]
+        C --> D["/kanban-create<br/>/kanban-add-issues<br/>칸반 보드 구성"]
+    end
+    subgraph PB["Phase B — CI/CD 설계 및 자동 구현"]
+        D --> E["/cicd-pipeline<br/>CI/CD 이슈 6~7개 등록<br/><b>※ 아직 .yml 없음</b>"]
+        E --> F["/ship-all<br/>이슈 순차 처리<br/>→ .github/workflows/*.yml <b>실제 생성</b><br/>→ 기능 이슈 구현<br/>→ CI 통과 후 자동 머지"]
+    end
+    F --> G["배포 완료"]
 ```
+
+**왜 CI/CD가 2단계인가?**
+`/cicd-pipeline`은 **"어떤 CI/CD가 필요한지"를 칸반 이슈로 분해**만 합니다 (문서화·설계 단계). 실제 `.github/workflows/*.yml` 파일은 `/ship-all`이 **L0 → L1 → L2 → L3 순서로 각 CI/CD 이슈를 처리할 때** 생성됩니다. 즉 CI/CD 구성도 일반 기능 이슈와 동일한 자동화 루프(구현 → PR → CI 검증 → 자동 머지)를 거칩니다.
+
+**실행 요약 (복붙 순서)**
+
+| 순서 | 커맨드 | 시점에서 생기는 것 |
+|------|--------|--------------------|
+| 1 | `/write-prd` | `prd.md` |
+| 2 | `/write-techspec` → `/generate-issues` | `techspec.md` + GitHub 기능 이슈 |
+| 3 | `/kanban-create` → `/kanban-add-issues` | Projects V2 보드 · Todo 컬럼 배치 |
+| 4 | `/cicd-pipeline` | **CI/CD 이슈 6~7개만 추가** (yml 파일은 아직 없음) |
+| 5 | `/ship-all` | CI/CD 이슈부터 실제 yml 생성 → 기능 이슈 구현 → 자동 머지 |
+
+> 단일 이슈만 처리하려면 `/ship #N`(CI 통과·자동 머지) 또는 `/implement #N`(PR 생성까지, 사람이 머지)을 사용합니다.
 
 ---
 

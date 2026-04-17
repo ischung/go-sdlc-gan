@@ -1,8 +1,8 @@
-# cc-sdlc — 소프트웨어 개발 자동화 Claude Code 스킬 패키지
+# go-sdlc — 소프트웨어 개발 자동화 Claude Code 스킬 패키지
 
 소프트웨어 개발 전체 라이프사이클(기획 → 설계 → 이슈 관리 → 구현 → CI/CD)을 자동화하는 **Claude Code 커스텀 스킬** 7종 패키지입니다.
 
-> **cc-sdlc** = Claude Code + Software Development Life Cycle
+> **go-sdlc** = Go + Software Development Life Cycle
 
 ---
 

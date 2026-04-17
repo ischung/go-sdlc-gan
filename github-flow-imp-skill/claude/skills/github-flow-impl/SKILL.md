@@ -499,11 +499,18 @@ git checkout -b BRANCH_NAME
 
 **감지**:
 
+트리거: (a) 키워드 grep — 제목/본문/라벨에 `e2e|playwright|cypress|end.to.end|end-to-end`. (b) **L2 Vertical Slice 라벨** — `level/L2` 또는 `slice/*`. 둘 중 하나라도 해당하면 E2E 단계로 진입한다. (b)는 `/generate-issues` 개정 이후 모든 L2 슬라이스 이슈가 Playwright E2E 시나리오를 본문에 보유하도록 강제된 규정과 정합을 맞추기 위한 것으로, 이슈 본문 템플릿 문구에 의존하지 않는다.
+
 ```bash
 IS_E2E=false
+# (a) 키워드 매칭 (제목/본문/라벨)
 echo "$ISSUE_TITLE $ISSUE_BODY" | grep -iEq "e2e|playwright|cypress|end.to.end|end-to-end" \
   && IS_E2E=true || true
 echo "$ISSUE_LABELS" | grep -iEq "e2e|playwright" && IS_E2E=true || true
+# (b) L2 Vertical Slice 이슈는 모두 Playwright E2E 시나리오를 포함하도록 규정되었으므로
+#     level/L2 또는 slice/* 라벨이 붙은 이슈는 키워드 매칭 결과와 무관하게 E2E로 간주
+echo "$ISSUE_LABELS" | grep -Eq "(^|,)[[:space:]]*level/L2([[:space:]]|,|$)|(^|,)[[:space:]]*slice/" \
+  && IS_E2E=true || true
 ```
 
 `IS_E2E=false`이면 이 서브스텝을 건너뛰고 일반 구현(아래)으로 진행한다.

@@ -378,7 +378,7 @@ Step 7    완료 보고 ("PR 머지 시 Done 자동 이동")
 
 **Step 4-0 — E2E 테스트 자동 생성**
 
-이슈 제목/본문/라벨에 `e2e`, `playwright`, `cypress`, `end-to-end` 포함 시 자동 실행:
+다음 중 하나라도 해당하면 자동 실행: ① 이슈 제목/본문/라벨에 `e2e`, `playwright`, `cypress`, `end-to-end` 포함 ② **라벨에 `level/L2` 또는 `slice/*`가 부착됨** (L2 Vertical Slice 이슈는 모두 Playwright E2E 시나리오를 보유하므로 키워드 없이도 강제 진입).
 
 | 분석 항목 | 방법 |
 |-----------|------|

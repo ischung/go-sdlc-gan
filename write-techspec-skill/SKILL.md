@@ -65,12 +65,16 @@ PRD를 읽은 후, 작성 전에 분석 결과를 먼저 보여준다:
 - **핵심 기능**: [목록]
 - **대상 사용자**: [페르소나]
 - **기술적 제약**: [환경, 성능 목표]
+- **배포 프로파일 (PRD §7)**: [L 또는 W] — L=로컬 실행만 / W=웹 배포
 - **추천 아키텍처 패턴**: [패턴명 + 선택 근거]
 - **추천 기술 스택**: [프론트/백/DB]
 
+> **프로파일 파싱 규칙**: PRD §7의 '배포 프로파일' 한 줄을 반드시 읽어 위 목록에 표기한다. 값이 없거나 모호하면 사용자에게 L/W 중 하나를 먼저 확정받은 뒤에만 TechSpec 작성을 시작한다. 이 값은 §2-3·§8 마일스톤·이후 `/generate-issues` 분기의 단일 원천이다.
+
 이 방향으로 TechSpec을 작성할까요?
 A) 네, 시작해주세요
-B) 아키텍처 방향을 바꾸고 싶어요 → [의견 입력]"
+B) 아키텍처 방향을 바꾸고 싶어요 → [의견 입력]
+C) 배포 프로파일을 바꾸고 싶어요 → [L 또는 W, 그리고 사유]"
 
 #### STEP 2 — 섹션별 작성 (승인 루프)
 
@@ -145,14 +149,20 @@ graph LR
     [PRD 기반으로 실제 컴포넌트 구성]
 ```
 
-### 2-3. 배포 환경
+### 2-3. 배포 프로파일 (L / W — PRD §7 계승, 불일치 시 사유 명시)
 
-| 환경 | 호스팅 | 비고 |
-|------|--------|------|
-| Frontend | [선택] | |
-| Backend | [선택] | |
-| Database | [선택] | |
-| CI/CD | GitHub Actions | |
+**프로파일**: [L 또는 W]
+**근거**: [PRD §7 '배포 프로파일' 값을 그대로 계승한다. 아키텍처 검토 결과 조정이 필요하면 사유 기재.]
+
+| 환경 | 호스팅 | L에서 포함 | W에서 포함 |
+|------|--------|:---------:|:---------:|
+| Frontend | [값] | ✅ | ✅ |
+| Backend | [값 또는 "해당 없음"] | — | ✅ |
+| Database | [값] | ✅ (local file 허용) | ✅ |
+| CI Gate (lint + test + Playwright E2E) | GitHub Actions | ✅ | ✅ |
+| CD (Docker · Pages · Staging) | [값 또는 "해당 없음"] | — | ✅ |
+
+> 프로파일 **L**인 경우 CD 행의 모든 항목은 "해당 없음"으로 채운다. Docker·Pages·Staging 관련 이슈는 `/generate-issues`에서 생성되지 않고, `/cicd-pipeline`도 기본 중단된다. 추후 배포 계획이 생기면 이 절을 W로 바꾸고 `/generate-issues`·`/cicd-pipeline`을 재실행한다.
 
 ---
 
@@ -326,16 +336,20 @@ L2 — ✅ 사용자 가치 단위 Vertical Slice
 
 TechSpec에 명시되지 않았더라도 **L0에는 반드시 아래 8개 이슈가 존재해야 한다.** 빠진 항목이 있으면 LLM이 자동으로 채워 넣는다.
 
-| # | 레이블 | 제목 | 목적 |
-|---|--------|------|------|
-| L0-1 | [Setup] | 프로젝트 초기 구조 및 빌드 설정 | 언어·프레임워크 초기화, 빌드 스크립트 |
-| L0-2 | [DB] | 데이터베이스 연결 및 기본 스키마 | 연결 설정 + health-check용 최소 1 테이블 |
-| L0-3 | [Backend] | 인증/인가 미들웨어 뼈대 | 토큰 검증 no-op 포함 — 후속 L2 슬라이스가 동일 훅을 재사용 |
-| L0-4 | [Backend] | API 라우팅 기본 구조 | `/health`, `/ping` 엔드포인트 동작 |
-| L0-5 | [Frontend] | 앱 scaffolding + 라우팅 + API 호출 샘플 | 홈 화면이 `/health` 응답을 렌더 |
-| L0-6 | [Core] | 공통 에러 핸들링 | 공통 응답 포맷 + 전역 에러 바운더리 |
-| L0-7 | [CI/CD] | 파이프라인 기본 구조 | PR 트리거·lint·unit 통과 강제(`/cicd-pipeline`의 L0~L1과 정합) |
-| L0-8 | [Test] | 테스트 환경 설정 | unit / integration / **Playwright E2E** 스캐폴드 |
+| # | 레이블 | 제목 | 목적 | 프로파일별 비고 |
+|---|--------|------|------|----------------|
+| L0-1 | [Setup] | 프로젝트 초기 구조 및 빌드 설정 | 언어·프레임워크 초기화, 빌드 스크립트 | L·W 공통 |
+| L0-2 | [DB] | 데이터베이스 연결 및 기본 스키마 | 연결 설정 + health-check용 최소 1 테이블 | L·W 공통 |
+| L0-3 | [Backend] | 인증/인가 미들웨어 뼈대 | 토큰 검증 no-op 포함 — 후속 L2 슬라이스가 동일 훅을 재사용 | L·W 공통 |
+| L0-4 | [Backend] | API 라우팅 기본 구조 | `/health`, `/ping` 엔드포인트 동작 | L·W 공통 |
+| L0-5 | [Frontend] | 앱 scaffolding + 라우팅 + API 호출 샘플 | 홈 화면이 `/health` 응답을 렌더 | L·W 공통 |
+| L0-6 | [Core] | 공통 에러 핸들링 | 공통 응답 포맷 + 전역 에러 바운더리 | L·W 공통 |
+| L0-7 | [CI/CD] | CI Gate 기본 구조 (lint + test + Playwright E2E) | PR 트리거로 lint·unit·E2E 전부 통과 강제 | **L**: 여기까지가 전부. Docker·Pages·Staging 이슈 생성 금지. **W**: 본문 말미에 "CD 이슈는 `/cicd-pipeline`로 별도 생성" 한 줄 명시. |
+| L0-8 | [Test] | 테스트 환경 설정 | unit / integration / **Playwright E2E** 스캐폴드 | L·W 공통 |
+
+> **프로파일 L에서의 L0-7 본문 필수 문구**: "이 프로젝트는 로컬 전용(L) 프로파일이므로 CD 단계(Docker·Pages·Staging)는 생성하지 않습니다. 추후 배포 계획이 생기면 TechSpec §2-3을 W로 갱신한 뒤 `/cicd-pipeline`을 실행하세요."
+>
+> **프로파일 W에서의 L0-7 본문 필수 문구**: "이 이슈는 CI Gate까지만 책임집니다. Docker Build·Pages/Staging 배포·컨테이너 스캔 등 CD 이슈는 `/cicd-pipeline` 스킬로 별도 생성하세요."
 
 #### L0 종료 조건 (Definition of Done for Walking Skeleton)
 
@@ -375,6 +389,10 @@ B) 방금 작성한 TechSpec을 바로 사용할게요"
 8. L2 이슈 각각이 PR ≤ 500 LOC · 예상 ≤ 2주로 추정되는가? → ✅/❌
 9. 테스트 이슈가 기능 이슈에서 분리돼 L2에 독립으로 존재하는 경우가 0건인가? (테스트는 각 L2 안에 내장) → ✅/❌
 10. DAG 레벨(L0/L1/L2/L3/L4) 태그가 모든 이슈에 부여돼 있는가? (레이어 레이블만으로 구성된 이슈 0건) → ✅/❌
+11. 모든 이슈가 TechSpec §2-3 배포 프로파일 [L/W]에 부합하는가? → ✅/❌
+    - L 프로파일: CD 관련 이슈(Docker / Pages / Staging / Container Scan) 0건
+    - W 프로파일: L0 CI gate만 포함하고 본문에 "Docker·Pages·Staging CD 이슈는 `/cicd-pipeline`로 별도 생성" 명시
+    [위반 이슈 번호]
 
 종합: 모두 ✅ → STEP 2 표 출력으로 진행. 하나라도 ❌ → **표 출력 금지**, 바로 재설계 후 본 게이트를 다시 출력.
 ```
@@ -546,6 +564,36 @@ GitHub 등록 시 `gh issue create` 명령을 사용:
 - **레이블**: 기본 레이블 외에 `level/L0`~`level/L4`를 함께 지정하면 칸반에서 병렬 그룹 필터링이 쉬워진다. 라벨이 없으면 `gh label create "level/L2" --color ededed 2>/dev/null || true` 식으로 멱등 생성.
 - **슬라이스 라벨 (L2 전용)**: L2 이슈에는 `slice/<slug>` 라벨을 추가로 붙인다(예: `slice/login`). 멱등 생성: `gh label create "slice/login" --color 0e8a16 2>/dev/null || true`. CI에서 Playwright가 `@slice:<slug>` 태그 시나리오를 필터링할 때 이 라벨·브랜치명·슬라이스 ID가 삼각 정렬되어야 한다.
 - 등록 완료 후 레벨별로 묶은 이슈 URL 목록을 출력한다.
+
+#### STEP 6 — 프로파일 기반 핸드오프 (필수, 반드시 출력)
+
+issues.md 저장(STEP 4) 및 GitHub 이슈 등록(STEP 5, 선택)이 끝나면, TechSpec §2-3의 배포 프로파일을 다시 확인해 **사용자에게 아래 메뉴를 반드시 노출**한다. 프로파일 값에 따라 **A 또는 B에 "(추천)" 라벨을 붙인다**.
+
+```
+📦 이슈 발행이 완료되었어요!
+  - issues.md: [경로]
+  - GitHub 이슈: [N개 등록 / 미등록]
+  - TechSpec 배포 프로파일: [L 또는 W]
+
+다음 단계를 골라주세요:
+
+A) [프로파일 L이면 추천] 여기서 완료
+   → `/kanban-create`로 보드를 구성하고 기능 이슈 구현을 시작하세요.
+   → 로컬 전용 프로젝트라 CD(Docker·Pages·Staging) 이슈는 필요하지 않습니다.
+
+B) [프로파일 W이면 추천] `/cicd-pipeline`을 이어서 실행
+   → Docker Build & Push, GitHub Pages 또는 Staging 배포, 컨테이너 스캔 등
+     CD 이슈 7~8개가 DAG 레벨 구조로 추가됩니다.
+   → 이후 `/kanban-create` → `/ship-all` 순서로 자동화.
+
+C) 이슈를 수동으로 수정/추가하고 싶어요 → 구체적으로 말씀해주세요.
+
+D) 배포 범위가 바뀌었어요 (예: L→W 또는 그 반대)
+   → `/write-techspec`으로 돌아가 §2-3 프로파일을 재설정한 뒤
+     `/generate-issues`를 다시 실행하세요.
+```
+
+> **중요**: 이 메뉴는 프로파일 값과 무관하게 **항상 네 개(A~D) 선택지를 모두** 출력한다. 추천만 프로파일에 따라 달라진다. 사용자가 선택하기 전에는 후속 스킬을 자동 실행하지 않는다.
 
 ### issues.md 출력 형식 헤더
 

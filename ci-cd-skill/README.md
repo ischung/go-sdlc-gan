@@ -33,24 +33,24 @@ Push/PR
 
 ## 설치
 
-이 스킬은 [`cc-sdlc`](../README.md) 패키지의 일부로 함께 설치됩니다.
+이 스킬은 [`go-sdlc`](../README.md) 패키지의 일부로 함께 설치됩니다.
 **단일 명령**으로 전역 또는 프로젝트 스코프 설치·제거가 가능합니다.
 
 ### 전역 설치 (모든 프로젝트에서 사용)
 
 ```bash
-npx cc-sdlc                # 설치 (~/.claude/)
-npx cc-sdlc uninstall      # 제거
-npx cc-sdlc list           # 설치 현황
+npx go-sdlc                # 설치 (~/.claude/)
+npx go-sdlc uninstall      # 제거
+npx go-sdlc list           # 설치 현황
 ```
 
 ### 프로젝트 스코프 설치 (해당 프로젝트에서만)
 
 ```bash
 cd /your-project
-npx cc-sdlc --project             # 현재 디렉토리의 .claude/ 에 설치
-npx cc-sdlc uninstall --project   # 현재 디렉토리의 .claude/ 에서 제거
-npx cc-sdlc list --project        # 프로젝트 설치 현황
+npx go-sdlc --project             # 현재 디렉토리의 .claude/ 에 설치
+npx go-sdlc uninstall --project   # 현재 디렉토리의 .claude/ 에서 제거
+npx go-sdlc list --project        # 프로젝트 설치 현황
 ```
 
 설치 위치 비교:

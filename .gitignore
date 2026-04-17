@@ -6,10 +6,10 @@
 .claude/
 **/.claude/
 
-# 참고자료 폴더 (스킬 아님)
-write-prd/
-write-techspec/
-tasks/
+# 참고자료 폴더 (스킬 아님) — 최상위만 무시, dist/write-prd 등은 추적
+/write-prd/
+/write-techspec/
+/tasks/
 
 # 이진 파일 (PDF, Pages)
 **/*.pdf

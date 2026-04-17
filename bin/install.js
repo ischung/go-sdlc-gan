@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * cc-sdlc installer
+ * go-sdlc installer
  *
  * 전역 설치 (기본):
- *   npx cc-sdlc                        → ~/.claude/ 에 모든 스킬 설치
- *   npx cc-sdlc uninstall              → ~/.claude/ 에서 제거
- *   npx cc-sdlc list                   → 전역 설치 현황
+ *   npx go-sdlc                        → ~/.claude/ 에 모든 스킬 설치
+ *   npx go-sdlc uninstall              → ~/.claude/ 에서 제거
+ *   npx go-sdlc list                   → 전역 설치 현황
  *
  * 프로젝트 스코프 설치:
- *   npx cc-sdlc --project              → 현재 디렉토리의 .claude/ 에 설치
- *   npx cc-sdlc --project /some/path   → 지정 경로의 .claude/ 에 설치
- *   npx cc-sdlc uninstall --project    → 현재 디렉토리의 .claude/ 에서 제거
- *   npx cc-sdlc list --project         → 프로젝트 설치 현황
+ *   npx go-sdlc --project              → 현재 디렉토리의 .claude/ 에 설치
+ *   npx go-sdlc --project /some/path   → 지정 경로의 .claude/ 에 설치
+ *   npx go-sdlc uninstall --project    → 현재 디렉토리의 .claude/ 에서 제거
+ *   npx go-sdlc list --project         → 프로젝트 설치 현황
  */
 
 const fs   = require('fs');
@@ -110,7 +110,7 @@ function removeDirIfEmpty(dir) {
 function printBanner() {
   console.log('');
   console.log(c.cyan(c.bold('╔══════════════════════════════════════════════╗')));
-  console.log(c.cyan(c.bold('║     cc-sdlc — Claude Code SDLC Skills v1.0  ║')));
+  console.log(c.cyan(c.bold('║     go-sdlc — Claude Code SDLC Skills v1.0  ║')));
   console.log(c.cyan(c.bold('╚══════════════════════════════════════════════╝')));
   console.log('');
   console.log(c.dim(`  대상: ${SCOPE_LABEL}`));
@@ -269,21 +269,21 @@ function list() {
 // ── 도움말 ───────────────────────────────────────────────────────────────
 function help() {
   console.log(`
-cc-sdlc — Claude Code SDLC Skills 설치 도구
+go-sdlc — Claude Code SDLC Skills 설치 도구
 
 전역 설치 (사용자 홈의 ~/.claude/):
-  npx cc-sdlc                        스킬 설치
-  npx cc-sdlc uninstall              스킬 제거
-  npx cc-sdlc list                   설치 현황 확인
+  npx go-sdlc                        스킬 설치
+  npx go-sdlc uninstall              스킬 제거
+  npx go-sdlc list                   설치 현황 확인
 
 프로젝트 스코프 설치 (대상 프로젝트의 .claude/):
-  npx cc-sdlc --project              현재 디렉토리에 설치
-  npx cc-sdlc --project /some/path   지정 경로에 설치
-  npx cc-sdlc uninstall --project    현재 디렉토리에서 제거
-  npx cc-sdlc list --project         프로젝트 설치 현황
+  npx go-sdlc --project              현재 디렉토리에 설치
+  npx go-sdlc --project /some/path   지정 경로에 설치
+  npx go-sdlc uninstall --project    현재 디렉토리에서 제거
+  npx go-sdlc list --project         프로젝트 설치 현황
 
 기타:
-  npx cc-sdlc help                   이 도움말 출력
+  npx go-sdlc help                   이 도움말 출력
 `);
 }
 

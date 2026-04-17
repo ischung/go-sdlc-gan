@@ -1,5 +1,5 @@
 {
-  "name": "cc-sdlc",
+  "name": "go-sdlc",
   "version": "1.0.0",
   "description": "소프트웨어 개발 라이프사이클(PRD→TechSpec→이슈→TDD→CI/CD) 자동화 Claude Code 스킬 패키지",
   "author": "insang",
@@ -7,7 +7,7 @@
   "keywords": [
     "claude",
     "claude-code",
-    "cc-sdlc",
+    "go-sdlc",
     "sdlc",
     "ai",
     "skills",
@@ -19,7 +19,7 @@
     "github-actions"
   ],
   "bin": {
-    "cc-sdlc": "./bin/install.js"
+    "go-sdlc": "./bin/install.js"
   },
   "files": [
     "bin/",
@@ -31,10 +31,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ischung/cc-sdlc.git"
+    "url": "https://github.com/ischung/go-sdlc.git"
   },
-  "homepage": "https://github.com/ischung/cc-sdlc#readme",
+  "homepage": "https://github.com/ischung/go-sdlc#readme",
   "bugs": {
-    "url": "https://github.com/ischung/cc-sdlc/issues"
+    "url": "https://github.com/ischung/go-sdlc/issues"
   }
 }

@@ -72,11 +72,28 @@ gh secret set KANBAN_TOKEN --repo OWNER/REPO
 
 ## 2. 설치
 
+7개 스킬, 12개 커맨드가 설치됩니다. 설치 후 **Claude Code를 재시작**하세요.
+
+### 전역 설치 (모든 프로젝트에서 사용)
+
 ```bash
-npx github:ischung/go-sdlc
+npx github:ischung/go-sdlc                 # ~/.claude/ 에 설치
 ```
 
-7개 스킬, 12개 커맨드가 `~/.claude/`에 설치됩니다. 설치 후 **Claude Code를 재시작**하세요.
+### 프로젝트 스코프 설치 (해당 프로젝트에서만 사용)
+
+```bash
+cd /your-project
+npx github:ischung/go-sdlc --project       # 현재 디렉토리의 .claude/ 에 설치
+npx github:ischung/go-sdlc --project /path # 지정 경로의 .claude/ 에 설치
+```
+
+| 스코프 | 설치 위치 | 언제 쓰나 |
+|--------|-----------|-----------|
+| 전역 (기본) | `~/.claude/` | 모든 프로젝트에서 동일 버전의 스킬을 쓸 때 |
+| 프로젝트 (`--project`) | `<target>/.claude/` | 실습·팀별로 스킬 버전을 독립 유지하거나, 전역을 비워둔 채 특정 프로젝트에만 적용할 때 |
+
+전역과 프로젝트 스코프 모두 설치되어 있으면 **프로젝트 스코프가 우선 적용**됩니다.
 
 ```
 ~/.claude/
@@ -108,7 +125,8 @@ npx github:ischung/go-sdlc
 ## 3. 설치 확인
 
 ```bash
-npx github:ischung/go-sdlc list
+npx github:ischung/go-sdlc list              # 전역 설치 현황
+npx github:ischung/go-sdlc list --project    # 현재 디렉토리의 프로젝트 설치 현황
 ```
 
 ---
@@ -563,8 +581,11 @@ flowchart LR
 # 전역 제거
 npx github:ischung/go-sdlc uninstall
 
-# 프로젝트 스코프 제거
+# 프로젝트 스코프 제거 (현재 디렉토리)
 npx github:ischung/go-sdlc uninstall --project
+
+# 프로젝트 스코프 제거 (지정 경로)
+npx github:ischung/go-sdlc uninstall --project /path
 ```
 
 제거 후 Claude Code를 재시작하면 스킬이 비활성화됩니다.

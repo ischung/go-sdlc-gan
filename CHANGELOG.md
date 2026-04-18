@@ -4,6 +4,20 @@
 
 ---
 
+## [1.0.1] — 2026-04-19
+
+### 변경 (리팩토링 — 기능 동일)
+
+- **`auto-ship/SKILL.md`** (423 → 258줄): Step 0~6 중복 내용을 `github-flow-impl` 위임 단일 블록으로 교체. 유지보수 포인트가 `github-flow-impl` 하나로 통일.
+- **`write-techspec/SKILL.md`** (651 → 621줄): "금지 예시 2 — Todo 캘린더" 16개 반례 블록 삭제. 규칙 한 문장으로 대체.
+- **`ci-cd-pipeline/SKILL.md`** (652 → 633줄): 노드 3b(Playwright E2E on PR) 설명 ~40줄 → ~20줄 압축. "Walking Skeleton과의 관계" 섹션 3줄로 축약.
+- **`write-prd/SKILL.md`** (626 → 623줄): Phase 3 페르소나 선택지 예시 인물 묘사 제거.
+- **`ship.md` 커맨드**: `argument-hint`에 GAN 플래그 추가(`--no-eval`, `--eval-threshold`, `--eval-economy`, `--eval-strict`).
+
+**총 -244줄 (-8%).** 스킬 동작·출력 형식·에이전트 호출 방식은 변경 없음.
+
+---
+
 ## [1.0.0] — 2026-04-19
 
 ### 추가

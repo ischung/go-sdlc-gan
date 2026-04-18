@@ -35,11 +35,7 @@ GitHub Actions 기반의 자동화 파이프라인 구축에 필요한 이슈들
 
 ### Walking Skeleton과의 관계
 
-`write-techspec → generate-issues`가 먼저 돌았다면 프로젝트에는 이미 L0 Walking Skeleton 8항목(특히 **L0-7 [CI/CD] 파이프라인 기본 구조**와 **L0-8 [Test] 테스트 환경 설정(Playwright E2E 스캐폴드 포함)**)이 존재한다. `/cicd-pipeline`은 그 L0 뼈대의 **확장판**으로 동작한다 — 즉 L0-7/L0-8이 "PR 트리거·lint·unit·Playwright 스캐폴드 한 파일"을 세우는 최소 작업이라면, 이 스킬은 거기에 Security Scan, Docker, Container Scan, Staging+스모크 E2E, Pages 배포까지 확장하는 이슈를 발행한다.
-
-중복을 피하기 위해 Step 0에서 **`level/L0` + `ci/cd` 라벨을 가진 기존 이슈가 있는지 감지**하고 존재 시 노드 1(기존 워크플로우 정리)과 노드 3a/3b의 기본 스캐폴드 부분은 "해당 L0 이슈와 중복되지 않도록 본문에 '선행: L0-7/L0-8' 명시 + 확장 범위만 기술" 방식으로 축약한다.
-
-권장 SDLC 체인은 루트 README의 "권장 실행 순서" 섹션을 참고.
+`/generate-issues`가 먼저 돌았다면 L0-7(CI Gate 기본)과 L0-8(Playwright E2E 스캐폴드)이 이미 존재한다. 이 스킬은 그 뼈대를 **확장**한다 — Security Scan, Docker, Container Scan, Staging+스모크 E2E, Pages 배포를 추가한다. Step 0에서 `level/L0 + ci/cd` 라벨 이슈가 감지되면 노드 1·3b의 기본 스캐폴드 부분은 "선행: L0-7/L0-8, 확장 범위만" 으로 축약한다.
 
 ---
 
@@ -351,44 +347,29 @@ create_issue 3 "L1" "CI" \
 
 ### 노드 3b (L1) — CI 파이프라인: Playwright E2E on PR (per-slice)
 
-노드 3(Unit/Integration)과 **병렬 실행**되며, **매 PR이 `main` 머지 전에 반드시 통과해야 하는 필수 status check**다. 이 노드가 Vertical Slice 방식과 맞물리는 핵심 연결고리다. 이전까지 노드 6(Staging+E2E)이 담당하던 "실제 앱 대상 E2E, Build→install→test 순서, 앱 분석 기반 테스트 생성" 지침은 **이 노드로 이관**하여 PR 단계에서 실행한다.
+노드 3(Unit/Integration)과 **병렬 실행**되며, **매 PR이 `main` 머지 전에 반드시 통과해야 하는 필수 status check**다.
 
 ```bash
 create_issue 3b "L1" "CI" \
   " Playwright E2E on PR — 슬라이스별 시나리오 자동 실행" \
   "매 PR에서 해당 Vertical Slice의 Playwright E2E 시나리오를 자동 실행하는 CI Gate를 구축한다.
 
-[목표] PR 단위로 end-to-end 안전망을 제공하여 main 머지 전에 실제 사용자 플로우가 동작함을 보장한다. 이는 Staging 배포 이후 실행되던 기존 E2E를 'PR 단계'로 앞당긴 것이며, Shift Left 원칙의 핵심이다.
+[E2E 대상 원칙] E2E는 반드시 실제 앱(devServer 또는 빌드 결과물)을 대상으로 한다. 바닐라 JS 목업 HTML은 허용하지 않는다.
+  playwright.config.ts webServer: { command: 'npm run dev', url: 'http://localhost:5173', reuseExistingServer: !process.env.CI }
 
-[E2E 대상 원칙 — 매우 중요] E2E 테스트는 반드시 실제 앱(React, Vue, Express 등 개발 서버 또는 빌드 결과물)을 대상으로 해야 한다. 바닐라 JS 목업 HTML(e2e/public/index.html 등)을 대상으로 하는 E2E는 실제 앱의 런타임 오류(import 누락, 타입 에러 등)를 검출할 수 없으므로 허용하지 않는다.
-
-[playwright.config 설정] playwright.config.ts의 webServer 항목을 아래와 같이 실제 앱 개발 서버로 설정한다.
-  webServer: {
-    command: 'npm run dev',  // 실제 앱 기동 명령
-    url: 'http://localhost:5173',  // 실제 앱 포트
-    reuseExistingServer: !process.env.CI,
-  }
-풀스택 프로젝트(클라이언트+서버)라면 'npm run dev:client & npm run dev:server' 형식으로 두 프로세스를 함께 기동한다.
-
-[CI 파이프라인 단계 순서] CI yml에서 E2E는 반드시 아래 순서를 지킨다.
-  1. npm run build  (빌드 실패 자체가 첫 번째 게이트)
+[CI 파이프라인 순서]
+  1. npm run build
   2. npx playwright install --with-deps chromium firefox webkit
-  3. npm run test:e2e -- --grep '@slice:<slug>'  (아래 슬라이스 필터링 참고)
-E2E 단계가 CI에 없으면 이 단계에서 추가한다.
+  3. npm run test:e2e -- --grep '@slice:<slug>'
+E2E 단계가 없으면 이 단계에서 추가한다.
 
-[슬라이스별 시나리오 필터링] PR 브랜치명 'feature/slice-<slug>' 또는 PR 라벨 'slice/<slug>'에서 슬라이스 ID를 추출해 '@slice:<slug>' 태그가 붙은 시나리오만 실행한다(미지정·main 푸시 시에는 전체 실행 fallback). 각 L2 Vertical Slice 이슈가 자신의 @slice:<slug> 태그를 붙인 E2E 시나리오를 소유한다.
+[슬라이스 필터링] PR 브랜치명 'feature/slice-<slug>' 또는 라벨 'slice/<slug>'에서 슬라이스 ID를 추출해 '@slice:<slug>' 태그 시나리오만 실행(미지정 시 전체 fallback).
 
-[크로스 브라우저 매트릭스] Chromium, Firefox, WebKit(Safari) 3종을 GitHub Actions의 matrix 전략으로 병렬 실행. 전체 실행 시간은 병렬 worker로 10분 이내.
+[브라우저 매트릭스] Chromium, Firefox, WebKit 3종 matrix 병렬 실행. 10분 이내.
 
-[실패 아티팩트] 실패 시 screenshot + video + trace를 actions/upload-artifact로 업로드하여 원인 추적을 가능하게 한다. retention-days: 14 권장.
+[실패 아티팩트] screenshot + video + trace를 upload-artifact로 업로드. retention-days: 14.
 
-[앱 분석 기반 테스트 생성 방법] 구현 담당자는 다음 순서로 앱을 분석하여 테스트를 생성한다. 1) package.json scripts.dev에서 dev 서버 기동 명령과 포트를 파악한다. 2) src/에서 React Router path= 또는 createBrowserRouter route 객체를 추출하여 테스트할 URL 목록을 확보한다. 3) src/pages/, src/views/에서 CRUD 관련(Create/List/Edit/Delete)과 인증 관련(Login/Auth) 컴포넌트를 확인한다. 4) 분석 결과를 바탕으로 최소 시나리오(메인 로딩, 라우트 접근성, CRUD/인증 플로우)를 포함하는 tests/e2e/<slice>.spec.ts를 생성한다. 5) playwright.config.ts의 webServer를 실제 dev 서버로 설정하고, CI에 Build → playwright install → E2E 단계를 추가한다.
-
-[e2e/public 목업 처리] e2e/public/index.html 등 독립 목업 파일이 존재하면 playwright.config의 webServer를 실제 앱으로 교체하고 목업 파일을 제거하거나 별도 디렉토리로 이동한다.
-
-[runner 임시 기동] 별도 Staging 서버가 없어도 Docker 컨테이너를 Actions runner 위에서 임시 기동하는 방식으로 실행 가능하다(staging 서버 불필요). L0-8(Playwright E2E 스캐폴드)이 이미 존재하면 그 위에 PR-트리거 워크플로우와 브라우저 매트릭스만 추가한다.
-
-[필수 status check 등록] GitHub Actions의 필수 status check로 등록하여 E2E 실패 시 merge 차단. 본 이슈는 노드 2(Static Analysis), 노드 3(Unit/Integration)과 독립적으로 병렬 실행된다." \
+[필수 status check] E2E 실패 시 merge 차단. 노드 2·3과 독립 병렬 실행." \
   "ci/cd,ci,testing,e2e" \
   "1"
 ```

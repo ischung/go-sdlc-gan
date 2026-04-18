@@ -282,36 +282,6 @@ L2 — ❌ 계층 분할 (금지)
 | 8 | [Frontend] | 게시글 작성 화면      |
 ```
 
-**금지 예시 2 — 실제 실패 사례: "Todo 캘린더" 16개 계층 분할 (절대 금지)**:
-
-아래는 실제 본 스킬이 잘못 출력했던 결과다. **레벨 배정이 전혀 없고 전부 레이어 레이블([Setup]/[DB]/[Backend]/[Core Logic]/[Frontend]/[UI/UX]/[Test]/[Infra])로만 쪼개져 있으며, "사용자가 …을 할 수 있다" 형식 이슈가 0개**다. 이 패턴이 나오면 **즉시 재설계**한다.
-
-```
-❌ 이렇게 절대 쪼개지 말 것 (레벨 없음 · 계층 분할 · 사용자 가치 단위 아님)
-| 1  | [Setup]      | 모노레포 폴더 구조 및 루트 설정
-| 2  | [Setup]      | Frontend 초기화 (Vite + React + Tailwind)
-| 3  | [Setup]      | Backend 초기화 (Express + better-sqlite3)
-| 4  | [DB]         | SQLite 스키마 정의 및 초기화 스크립트
-| 5  | [Backend]    | Todo Repository (CRUD) 구현
-| 6  | [Core Logic] | Todo Service (검증 로직) 구현
-| 7  | [Backend]    | REST API 5개 엔드포인트 구현
-| 8  | [Backend]    | 공통 에러 핸들링 미들웨어
-| 9  | [Frontend]   | API 클라이언트 모듈 (fetch 래퍼)
-| 10 | [Frontend]   | Calendar 컴포넌트 (월 이동, 날짜 선택, 점 표시)
-| 11 | [Frontend]   | TodoPanel 컴포넌트 (목록/추가/수정/삭제)
-| 12 | [Frontend]   | App 상위 상태 통합 및 연동
-| 13 | [UI/UX]      | 반응형 레이아웃 및 시각적 힌트
-| 14 | [Test]       | Backend API 테스트
-| 15 | [Test]       | Frontend 핵심 컴포넌트 테스트
-| 16 | [Infra]      | GitHub Actions CI 워크플로우
-```
-
-이 출력의 치명적 결함:
-1. DAG 레벨(L0/L1/L2/L3/L4) 자체가 누락돼 병렬·순차 실행 계획이 불가능.
-2. #5~#13이 전형적인 레이어 슬라이스 — "사용자가 할 일을 추가할 수 있다" 같은 end-to-end 묶음이 없음.
-3. "Backend API 5개 엔드포인트"는 L2로 치면 최소 5개의 서로 다른 사용자 가치를 한 이슈에 욱여넣은 슈퍼 이슈.
-4. #14/#15 Test를 기능 이슈에서 분리 — L2는 자기 테스트를 안에 포함해야 한다.
-
 **올바른 예시 (슬라이스 단위로 묶인 end-to-end 이슈)**:
 
 ```

@@ -7,6 +7,10 @@
  *   npx go-sdlc-gan uninstall              → ~/.claude/ 에서 제거
  *   npx go-sdlc-gan list                   → 전역 설치 현황
  *
+ * 특정 버전 설치/제거:
+ *   npx go-sdlc-gan@1.0.0                  → v1.0.0 설치
+ *   npx go-sdlc-gan@1.0.0 uninstall        → v1.0.0 제거
+ *
  * 프로젝트 스코프 설치:
  *   npx go-sdlc-gan --project              → 현재 디렉토리의 .claude/ 에 설치
  *   npx go-sdlc-gan --project /some/path   → 지정 경로의 .claude/ 에 설치
@@ -17,6 +21,8 @@
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
+
+const PKG_VERSION = require('../package.json').version;
 
 // ── 색상 출력 ─────────────────────────────────────────────────────────────
 const USE_COLOR = process.stdout.isTTY;
@@ -67,10 +73,11 @@ const SCOPE_LABEL    = isProjectScope
   ? `project — ${baseDir}/.claude/`
   : `global — ~/.claude/`;
 
-const SKILLS_DIR   = path.join(baseDir, '.claude', 'skills');
-const COMMANDS_DIR = path.join(baseDir, '.claude', 'commands');
-const AGENTS_DIR   = path.join(baseDir, '.claude', 'agents');
-const DIST_AGENTS  = path.join(DIST_DIR, 'agents');
+const SKILLS_DIR    = path.join(baseDir, '.claude', 'skills');
+const COMMANDS_DIR  = path.join(baseDir, '.claude', 'commands');
+const AGENTS_DIR    = path.join(baseDir, '.claude', 'agents');
+const DIST_AGENTS   = path.join(DIST_DIR, 'agents');
+const VERSION_FILE  = path.join(baseDir, '.claude', 'go-sdlc-gan.json');
 
 // ── 유틸리티 ─────────────────────────────────────────────────────────────
 function ensureDir(dir) {
@@ -108,12 +115,37 @@ function removeDirIfEmpty(dir) {
   return false;
 }
 
+// ── 버전 메타 ─────────────────────────────────────────────────────────────
+function readVersionMeta() {
+  try {
+    if (fs.existsSync(VERSION_FILE)) {
+      return JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeVersionMeta() {
+  const meta = {
+    version:     PKG_VERSION,
+    installedAt: new Date().toISOString(),
+    scope:       isProjectScope ? `project:${baseDir}` : 'global',
+  };
+  fs.writeFileSync(VERSION_FILE, JSON.stringify(meta, null, 2));
+}
+
+function removeVersionMeta() {
+  if (fs.existsSync(VERSION_FILE)) fs.unlinkSync(VERSION_FILE);
+}
+
 // ── 배너 ─────────────────────────────────────────────────────────────────
 function printBanner() {
   console.log('');
-  console.log(c.cyan(c.bold('╔══════════════════════════════════════════════╗')));
-  console.log(c.cyan(c.bold('║  go-sdlc-gan — SDLC + GAN Quality Loop v1.0 ║')));
-  console.log(c.cyan(c.bold('╚══════════════════════════════════════════════╝')));
+  const title = `go-sdlc-gan — SDLC + GAN Quality Loop v${PKG_VERSION}`;
+  const border = '═'.repeat(title.length + 4);
+  console.log(c.cyan(c.bold(`╔${border}╗`)));
+  console.log(c.cyan(c.bold(`║  ${title}  ║`)));
+  console.log(c.cyan(c.bold(`╚${border}╝`)));
   console.log('');
   console.log(c.dim(`  대상: ${SCOPE_LABEL}`));
   console.log('');
@@ -181,8 +213,11 @@ function install() {
     console.log('');
   }
 
+  writeVersionMeta();
+
   console.log(c.bold('[설치 완료]'));
   console.log('');
+  console.log(`  ${c.cyan('→')} 버전:      ${c.bold(`v${PKG_VERSION}`)}`);
   console.log(`  ${c.cyan('→')} 스킬:      ${c.bold(String(totalSkills))}개  →  ${SKILLS_DIR}`);
   console.log(`  ${c.cyan('→')} 커맨드:    ${c.bold(String(totalCommands))}개  →  ${COMMANDS_DIR}`);
   console.log(`  ${c.cyan('→')} 에이전트:  ${c.bold(String(totalAgents))}개  →  ${AGENTS_DIR}`);
@@ -276,8 +311,11 @@ function uninstall() {
     if (emptyRemoved.length) console.log('');
   }
 
+  removeVersionMeta();
+  removeDirIfEmpty(path.join(baseDir, '.claude'));
+
   console.log(c.bold('[제거 완료]'));
-  console.log(`  ${c.cyan('→')} 스킬 ${removedSkills}개, 커맨드 ${removedCmds}개, 에이전트 ${removedAgents}개 제거되었습니다.`);
+  console.log(`  ${c.cyan('→')} v${PKG_VERSION} — 스킬 ${removedSkills}개, 커맨드 ${removedCmds}개, 에이전트 ${removedAgents}개 제거되었습니다.`);
   console.log('');
 }
 
@@ -285,6 +323,17 @@ function uninstall() {
 function list() {
   printBanner();
   console.log(c.bold('[설치 현황]'));
+  console.log('');
+
+  const meta = readVersionMeta();
+  if (meta) {
+    console.log(`  ${c.green('✔')}  설치된 버전: ${c.bold(`v${meta.version}`)}  (설치일: ${meta.installedAt.slice(0, 10)})`);
+    if (meta.version !== PKG_VERSION) {
+      console.log(`  ${c.yellow('⚠')}  현재 패키지 버전: v${PKG_VERSION} — 업데이트 필요 시 다시 설치하세요.`);
+    }
+  } else {
+    console.log(`  ${c.yellow('⚠')}  버전 정보 없음 (구버전 설치이거나 미설치)`);
+  }
   console.log('');
 
   for (const name of getSkillNames()) {
@@ -315,18 +364,26 @@ function list() {
 // ── 도움말 ───────────────────────────────────────────────────────────────
 function help() {
   console.log(`
-go-sdlc-gan — Claude Code SDLC + GAN Quality Loop 설치 도구
+go-sdlc-gan v${PKG_VERSION} — Claude Code SDLC + GAN Quality Loop 설치 도구
 
 전역 설치 (사용자 홈의 ~/.claude/):
-  npx go-sdlc-gan                        스킬 설치
-  npx go-sdlc-gan uninstall              스킬 제거
-  npx go-sdlc-gan list                   설치 현황 확인
+  npx go-sdlc-gan                        최신 버전 설치
+  npx go-sdlc-gan@1.0.0                  특정 버전(1.0.0) 설치
+  npx go-sdlc-gan uninstall              설치된 버전 제거
+  npx go-sdlc-gan@1.0.0 uninstall        특정 버전 제거
+  npx go-sdlc-gan list                   설치 현황 + 버전 확인
 
 프로젝트 스코프 설치 (대상 프로젝트의 .claude/):
   npx go-sdlc-gan --project              현재 디렉토리에 설치
+  npx go-sdlc-gan@1.0.0 --project        특정 버전을 현재 디렉토리에 설치
   npx go-sdlc-gan --project /some/path   지정 경로에 설치
   npx go-sdlc-gan uninstall --project    현재 디렉토리에서 제거
   npx go-sdlc-gan list --project         프로젝트 설치 현황
+
+버전 정보:
+  설치 시 ~/.claude/go-sdlc-gan.json (전역) 또는
+           <project>/.claude/go-sdlc-gan.json (프로젝트)에 버전이 기록됩니다.
+  npx go-sdlc-gan list 로 현재 설치 버전을 확인할 수 있습니다.
 
 기타:
   npx go-sdlc-gan help                   이 도움말 출력

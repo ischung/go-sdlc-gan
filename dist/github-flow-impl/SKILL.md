@@ -27,6 +27,25 @@ description: >
 ## Role
 
 너는 이 프로젝트의 **구현 담당 AI 개발자**다. 한 번에 **하나의 이슈만** 처리한다.
+Step 4에서 구현한 뒤, **GAN Generator-Evaluator 루프**(Step 4.5/5.5/5.6)를 돌려 품질 게이트를 통과시킨 후에만 PR을 연다.
+
+---
+
+## GAN 루프 상수 (기본값)
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `IMPL_ITER_MAX` | `3` | Step 4 ↔ Step 5.5 재구현-재평가 최대 반복 횟수 |
+| `EVAL_THRESHOLD` | `8.0` | rubric 평균 임계값 (이상이면 PASS 후보) |
+| `EVAL_ITEM_MIN` | `6.0` | rubric 각 항목 하한 (미만이면 FAIL) |
+| `PLATEAU_EPS` | `0.3` | iter간 평균 상승폭이 이 값 미만이면 정체로 간주, 조기 중단 |
+
+커맨드 플래그로 오버라이드 가능:
+- `--no-eval` — Step 4.5/5.5/5.6 전체 건너뛰기(기존 동작 복원)
+- `--eval-threshold <N>` — `EVAL_THRESHOLD` 변경
+- `--eval-max-iter <N>` — `IMPL_ITER_MAX` 변경
+- `--eval-economy` — Evaluator도 Sonnet으로 실행 (비용 절감, 교실 실습용)
+- `--eval-strict` — Generator도 Opus로 실행 (최고 품질, 졸업작품/컨테스트용)
 
 ---
 
@@ -493,7 +512,7 @@ git checkout -b BRANCH_NAME
 
 ---
 
-## Step 4 — 코드 구현
+## Step 4 — 코드 구현 (Generator, iter = 1)
 
 먼저 프로젝트 구조를 파악한다:
 
@@ -503,19 +522,140 @@ find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" 
 cat package.json 2>/dev/null || true
 ```
 
-AC가 있으면 AC 항목 기준으로, 없으면 이슈 설명 전체를 기준으로 구현한다.
-기존 코드 컨벤션(파일 구조, 네이밍, import 스타일)을 엄격히 준수한다.
+이후 `sdlc-code-generator` 서브에이전트를 Task tool로 호출한다 (`--no-eval` 플래그가 없을 때).
+이 에이전트는 **Sonnet 4.6**으로 실행되며, sprint-contract가 아직 없으므로 최초에는 AC 기반으로 구현한다.
+
+```
+Task({
+  subagent_type: "sdlc-code-generator",
+  description: "이슈 #<N> 최초 구현",
+  prompt: "ITER_K=1. 이슈 본문·AC 기반으로 최초 구현. sprint-contract.md는 Step 4.5에서 생성될 예정이므로 이번 단계에서는 AC를 직접 참조한다. Non-goals는 이슈 본문의 out-of-scope 문구를 따른다."
+})
+```
+
+`--no-eval` 모드이거나 Task 호출이 불가능한 환경이면, Claude가 **직접** 아래 지침으로 구현한다:
+- AC가 있으면 AC 항목 기준으로, 없으면 이슈 설명 전체를 기준으로 구현.
+- 기존 코드 컨벤션(파일 구조, 네이밍, import 스타일) 엄격 준수.
 
 ---
 
-## Step 5 — 로컬 테스트
+## Step 4.5 — Contracting (AC → TC 잠금)
 
-```bash
-npm run build 2>/dev/null || yarn build 2>/dev/null || true
-npm test 2>/dev/null || yarn test 2>/dev/null || true
+> **이 단계는 `--no-eval` 모드에서는 건너뛴다.**
+
+`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다:
+
+```
+Task({
+  subagent_type: "sdlc-contracting",
+  description: "이슈 #<N> AC → TC 번역 및 계약 잠금",
+  prompt: "ISSUE_NUMBER=<N>. 이슈 본문과 AC를 읽어 docs/evaluations/issue-<N>/sprint-contract.md를 생성한다. TC 5~10개, Non-goals, Definition of Done 포함."
+})
 ```
 
-테스트 실패 시 코드 수정 후 재실행. 1회 재시도 후에도 실패 시 사용자에게 보고 후 중단.
+출력 시그널이 `CONTRACT_OK`로 시작하면 파일 경로를 파악한다.
+생성된 sprint-contract.md를 Read로 읽어 사용자에게 한 번 보여주고 **승인 A/수정/건너뛰기** 중 선택을 받는다.
+
+- **A(승인)**: 이대로 잠금, Step 5로 진행.
+- **수정**: 사용자의 수정 요청을 반영하여 Edit로 파일 갱신 후 다시 승인 요청.
+- **건너뛰기**: `--no-eval` 모드로 전환하고 Step 5의 기존 로컬 테스트 경로로 진행.
+
+승인된 계약은 **이번 이슈의 모든 iteration 동안 불변**이다.
+
+---
+
+## Step 5 — 로컬 테스트 (Generator 자가 검증)
+
+```bash
+npm run build 2>&1 | tail -80
+npm test 2>&1 | tail -120
+```
+
+> 결과는 stdout으로 저장해둔다. Step 5.5의 Evaluator가 동일한 로그를 참조한다.
+
+Generator가 자체적으로 3회까지 국소 수정(build/test 실패 시)을 수행할 수 있으나,
+**판정은 Evaluator의 몫이다**. build/test가 실패했더라도 중단하지 않고 Step 5.5로 진행한다 —
+Evaluator가 근거로 삼아 다음 iteration의 feedback을 생성한다.
+
+`--no-eval` 모드에서는 기존 동작(테스트 실패 시 1회 재시도 후 중단)을 따른다.
+
+---
+
+## Step 5.5 — Evaluator (QA 채점)
+
+> **이 단계는 `--no-eval` 모드에서는 건너뛴다.**
+
+`sdlc-code-evaluator` 서브에이전트를 Task tool로 호출한다. 이 에이전트는 **Opus 4.7**로 실행되며,
+sprint-contract.md의 TC를 7항목 rubric으로 채점하여 `qa-report-iter-<K>.md`를 생성한다.
+
+```
+Task({
+  subagent_type: "sdlc-code-evaluator",
+  description: "이슈 #<N> iter <K> 평가",
+  prompt: "ISSUE_NUMBER=<N>, ITER_K=<K>, EVAL_THRESHOLD=<T>, EVAL_ITEM_MIN=<M>. sprint-contract.md의 TC를 기준으로 현재 working tree를 채점. build/test 로그와 git diff를 실제로 실행해 근거로 인용할 것."
+})
+```
+
+`--eval-economy` 플래그가 있으면 Task 호출 시 `model: "sonnet"`을 명시하여 evaluator frontmatter를 override한다.
+
+출력 시그널 파싱:
+```
+EVAL_DONE docs/evaluations/issue-<N>/qa-report-iter-<K>.md
+AVERAGE <평균>
+MIN_ITEM <최저>
+VERDICT <PASS|FAIL>
+PLATEAU <YES|NO|N/A>
+```
+
+---
+
+## Step 5.6 — 분기 (루프 제어)
+
+> **이 단계는 `--no-eval` 모드에서는 건너뛴다.**
+
+Step 5.5의 출력 시그널을 기준으로 분기한다.
+
+### Case 1: `VERDICT=PASS`
+→ **Step 6 PR 생성**으로 진행. PR 본문에 qa-report 점수 궤적을 첨부한다:
+
+```
+## QA Report (GAN Loop)
+- iter 1: <평균> / 10
+- iter 2: <평균> / 10
+- iter K: <평균> / 10 ✅ PASS (threshold <T>)
+- 최종 리포트: docs/evaluations/issue-<N>/qa-report-iter-<K>.md
+```
+
+### Case 2: `VERDICT=FAIL` AND `K < IMPL_ITER_MAX`
+→ **Step 4(Generator 재진입)**. 단, 이번에는 `ITER_K = K+1`로 Generator를 호출하고,
+최신 qa-report의 "Generator Feedback" 섹션을 입력으로 주입한다:
+
+```
+Task({
+  subagent_type: "sdlc-code-generator",
+  description: "이슈 #<N> iter <K+1> 재구현 (feedback 반영)",
+  prompt: "ITER_K=<K+1>. 최신 qa-report: docs/evaluations/issue-<N>/qa-report-iter-<K>.md. '우선 수정' 섹션 순서대로 처리. '건드리지 말 것' 준수. sprint-contract.md는 수정 금지."
+})
+```
+
+재진입 후 Step 5 → Step 5.5 → Step 5.6을 다시 수행.
+
+### Case 3: `VERDICT=FAIL` AND (`K == IMPL_ITER_MAX` OR `PLATEAU=YES`)
+→ 사용자에게 회부. 루프를 중단하고 아래를 출력:
+
+```
+⚠️  GAN 루프 한계 도달 (iter <K>/<MAX>, plateau=<YES|NO>)
+
+이슈:     #<N> <TITLE>
+브랜치:   <BRANCH>
+평균 궤적: <iter1> → <iter2> → ... → <iterK>
+최종 리포트: docs/evaluations/issue-<N>/qa-report-iter-<K>.md
+
+자동 수렴 실패. 다음 중 선택해 주세요:
+  1) 리포트를 직접 읽고 수동 수정 후: git add -A && git commit && git push
+  2) 임계값 완화 재시도: /implement #<N> --eval-threshold 7.0
+  3) 이 상태 그대로 PR 오픈(품질 경고 첨부): /implement #<N> --no-eval
+```
 
 ---
 
@@ -560,13 +700,16 @@ gh project item-edit \
 ```
 ✅ 작업 완료
 
-📌 이슈: #ISSUE_NUMBER ISSUE_TITLE
-🌿 브랜치: BRANCH_NAME
-🔗 PR: PR_URL
-✔️ 테스트: 통과
-📬 상태: Review로 이동 완료
-🤖 자동화: PR 머지 시 'Closes #ISSUE_NUMBER' 키워드에 의해 Done으로 자동 이동됩니다
+📌 이슈:     #ISSUE_NUMBER ISSUE_TITLE
+🌿 브랜치:   BRANCH_NAME
+🔗 PR:       PR_URL
+✔️ 테스트:   통과
+🎯 GAN 궤적: <iter1> → <iter2> → ... → <iterK> (threshold <T>)
+📬 상태:     Review로 이동 완료
+🤖 자동화:   PR 머지 시 'Closes #ISSUE_NUMBER' 키워드에 의해 Done으로 자동 이동됩니다
 ```
+
+`--no-eval` 모드이면 `GAN 궤적` 줄은 생략한다.
 
 ---
 
@@ -574,9 +717,13 @@ gh project item-edit \
 
 - 한 번에 하나의 이슈만 처리
 - `gh` CLI와 `git`만 사용
-- 테스트 미통과 시 PR 생성 금지
+- Evaluator가 `VERDICT=PASS`를 반환한 뒤에만 PR 생성 (단, `--no-eval`이면 기존 동작)
+- sprint-contract.md는 Contracting 단계 승인 후 **불변**
+- Non-goals 영역 수정 금지 — Evaluator가 감점하여 루프 발산 위험
 
 ## Prerequisites
 
 - `gh auth login` 완료
 - `gh` CLI 2.x 이상, `jq` 설치
+- `.claude/agents/sdlc-contracting.md`, `.claude/agents/sdlc-code-evaluator.md`, `.claude/agents/sdlc-code-generator.md`
+  설치됨 (`npx go-sdlc-gan install` 또는 `--project` 모드)

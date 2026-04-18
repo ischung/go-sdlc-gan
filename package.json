@@ -1,14 +1,15 @@
 {
-  "name": "go-sdlc",
+  "name": "go-sdlc-gan",
   "version": "1.0.0",
-  "description": "소프트웨어 개발 라이프사이클(PRD→TechSpec→이슈→TDD→CI/CD) 자동화 Claude Code 스킬 패키지",
+  "description": "소프트웨어 개발 라이프사이클(PRD→TechSpec→이슈→TDD→CI/CD) + GAN Generator-Evaluator 품질 루프 자동화 Claude Code 스킬 패키지",
   "author": "insang",
   "license": "MIT",
   "keywords": [
     "claude",
     "claude-code",
-    "go-sdlc",
+    "go-sdlc-gan",
     "sdlc",
+    "gan",
     "ai",
     "skills",
     "devops",
@@ -19,7 +20,7 @@
     "github-actions"
   ],
   "bin": {
-    "go-sdlc": "./bin/install.js"
+    "go-sdlc-gan": "./bin/install.js"
   },
   "files": [
     "bin/",
@@ -31,10 +32,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ischung/go-sdlc.git"
+    "url": "https://github.com/ischung/go-sdlc-gan.git"
   },
-  "homepage": "https://github.com/ischung/go-sdlc#readme",
+  "homepage": "https://github.com/ischung/go-sdlc-gan#readme",
   "bugs": {
-    "url": "https://github.com/ischung/go-sdlc/issues"
+    "url": "https://github.com/ischung/go-sdlc-gan/issues"
   }
 }

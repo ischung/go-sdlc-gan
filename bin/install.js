@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * go-sdlc installer
+ * go-sdlc-gan installer
  *
  * 전역 설치 (기본):
- *   npx go-sdlc                        → ~/.claude/ 에 모든 스킬 설치
- *   npx go-sdlc uninstall              → ~/.claude/ 에서 제거
- *   npx go-sdlc list                   → 전역 설치 현황
+ *   npx go-sdlc-gan                        → ~/.claude/ 에 모든 스킬 설치
+ *   npx go-sdlc-gan uninstall              → ~/.claude/ 에서 제거
+ *   npx go-sdlc-gan list                   → 전역 설치 현황
  *
  * 프로젝트 스코프 설치:
- *   npx go-sdlc --project              → 현재 디렉토리의 .claude/ 에 설치
- *   npx go-sdlc --project /some/path   → 지정 경로의 .claude/ 에 설치
- *   npx go-sdlc uninstall --project    → 현재 디렉토리의 .claude/ 에서 제거
- *   npx go-sdlc list --project         → 프로젝트 설치 현황
+ *   npx go-sdlc-gan --project              → 현재 디렉토리의 .claude/ 에 설치
+ *   npx go-sdlc-gan --project /some/path   → 지정 경로의 .claude/ 에 설치
+ *   npx go-sdlc-gan uninstall --project    → 현재 디렉토리의 .claude/ 에서 제거
+ *   npx go-sdlc-gan list --project         → 프로젝트 설치 현황
  */
 
 const fs   = require('fs');
@@ -69,6 +69,8 @@ const SCOPE_LABEL    = isProjectScope
 
 const SKILLS_DIR   = path.join(baseDir, '.claude', 'skills');
 const COMMANDS_DIR = path.join(baseDir, '.claude', 'commands');
+const AGENTS_DIR   = path.join(baseDir, '.claude', 'agents');
+const DIST_AGENTS  = path.join(DIST_DIR, 'agents');
 
 // ── 유틸리티 ─────────────────────────────────────────────────────────────
 function ensureDir(dir) {
@@ -110,7 +112,7 @@ function removeDirIfEmpty(dir) {
 function printBanner() {
   console.log('');
   console.log(c.cyan(c.bold('╔══════════════════════════════════════════════╗')));
-  console.log(c.cyan(c.bold('║     go-sdlc — Claude Code SDLC Skills v1.0  ║')));
+  console.log(c.cyan(c.bold('║  go-sdlc-gan — SDLC + GAN Quality Loop v1.0 ║')));
   console.log(c.cyan(c.bold('╚══════════════════════════════════════════════╝')));
   console.log('');
   console.log(c.dim(`  대상: ${SCOPE_LABEL}`));
@@ -131,6 +133,7 @@ function install() {
 
   ensureDir(SKILLS_DIR);
   ensureDir(COMMANDS_DIR);
+  ensureDir(AGENTS_DIR);
 
   const skillNames = getSkillNames();
   if (skillNames.length === 0) {
@@ -140,6 +143,7 @@ function install() {
 
   let totalSkills   = 0;
   let totalCommands = 0;
+  let totalAgents   = 0;
 
   for (const name of skillNames) {
     console.log(c.bold(`  ▸ ${name}`));
@@ -164,10 +168,24 @@ function install() {
     console.log('');
   }
 
+  // GAN 루프용 에이전트 설치 (dist/agents/*.md → .claude/agents/)
+  const agentFiles = getMdFiles(DIST_AGENTS);
+  if (agentFiles.length > 0) {
+    console.log(c.bold('  ▸ agents (GAN Generator-Evaluator)'));
+    for (const f of agentFiles) {
+      const dstAgent = path.join(AGENTS_DIR, path.basename(f));
+      const ow = copyFile(f, dstAgent);
+      console.log(`    ${c.green('✔')} 에이전트 ${ow ? '업데이트' : '설치'}: ${path.basename(f, '.md')}`);
+      totalAgents++;
+    }
+    console.log('');
+  }
+
   console.log(c.bold('[설치 완료]'));
   console.log('');
-  console.log(`  ${c.cyan('→')} 스킬:    ${c.bold(String(totalSkills))}개  →  ${SKILLS_DIR}`);
-  console.log(`  ${c.cyan('→')} 커맨드:  ${c.bold(String(totalCommands))}개  →  ${COMMANDS_DIR}`);
+  console.log(`  ${c.cyan('→')} 스킬:      ${c.bold(String(totalSkills))}개  →  ${SKILLS_DIR}`);
+  console.log(`  ${c.cyan('→')} 커맨드:    ${c.bold(String(totalCommands))}개  →  ${COMMANDS_DIR}`);
+  console.log(`  ${c.cyan('→')} 에이전트:  ${c.bold(String(totalAgents))}개  →  ${AGENTS_DIR}`);
   console.log('');
   console.log(`  ${c.green('Claude Code를 재시작하면 모든 스킬이 활성화됩니다.')}`);
   if (isProjectScope) {
@@ -203,6 +221,7 @@ function uninstall() {
 
   let removedSkills = 0;
   let removedCmds   = 0;
+  let removedAgents = 0;
 
   for (const name of getSkillNames()) {
     console.log(c.bold(`  ▸ ${name}`));
@@ -228,11 +247,27 @@ function uninstall() {
     console.log('');
   }
 
+  // GAN 루프용 에이전트 제거
+  const agentFiles = getMdFiles(DIST_AGENTS);
+  if (agentFiles.length > 0) {
+    console.log(c.bold('  ▸ agents (GAN Generator-Evaluator)'));
+    for (const f of agentFiles) {
+      const dstAgent = path.join(AGENTS_DIR, path.basename(f));
+      if (fs.existsSync(dstAgent)) {
+        fs.unlinkSync(dstAgent);
+        console.log(`    ${c.green('✔')} 에이전트 제거: ${path.basename(f, '.md')}`);
+        removedAgents++;
+      }
+    }
+    console.log('');
+  }
+
   // 프로젝트 스코프에서는 빈 .claude 하위 디렉토리 정리
   if (isProjectScope) {
     const emptyRemoved = [];
     if (removeDirIfEmpty(SKILLS_DIR))   emptyRemoved.push(SKILLS_DIR);
     if (removeDirIfEmpty(COMMANDS_DIR)) emptyRemoved.push(COMMANDS_DIR);
+    if (removeDirIfEmpty(AGENTS_DIR))   emptyRemoved.push(AGENTS_DIR);
     const claudeDir = path.join(baseDir, '.claude');
     if (removeDirIfEmpty(claudeDir))    emptyRemoved.push(claudeDir);
     for (const d of emptyRemoved) {
@@ -242,7 +277,7 @@ function uninstall() {
   }
 
   console.log(c.bold('[제거 완료]'));
-  console.log(`  ${c.cyan('→')} 스킬 ${removedSkills}개, 커맨드 ${removedCmds}개 제거되었습니다.`);
+  console.log(`  ${c.cyan('→')} 스킬 ${removedSkills}개, 커맨드 ${removedCmds}개, 에이전트 ${removedAgents}개 제거되었습니다.`);
   console.log('');
 }
 
@@ -263,27 +298,38 @@ function list() {
       console.log(`       ${ok ? c.green('✔') : c.red('✖')}  /${path.basename(f, '.md')}`);
     }
   }
+
+  const agentFiles = getMdFiles(DIST_AGENTS);
+  if (agentFiles.length > 0) {
+    console.log('');
+    console.log(c.bold('  에이전트 (GAN Generator-Evaluator):'));
+    for (const f of agentFiles) {
+      const dstAgent = path.join(AGENTS_DIR, path.basename(f));
+      const ok = fs.existsSync(dstAgent);
+      console.log(`  ${ok ? c.green('✔') : c.red('✖')}  ${path.basename(f, '.md')}`);
+    }
+  }
   console.log('');
 }
 
 // ── 도움말 ───────────────────────────────────────────────────────────────
 function help() {
   console.log(`
-go-sdlc — Claude Code SDLC Skills 설치 도구
+go-sdlc-gan — Claude Code SDLC + GAN Quality Loop 설치 도구
 
 전역 설치 (사용자 홈의 ~/.claude/):
-  npx go-sdlc                        스킬 설치
-  npx go-sdlc uninstall              스킬 제거
-  npx go-sdlc list                   설치 현황 확인
+  npx go-sdlc-gan                        스킬 설치
+  npx go-sdlc-gan uninstall              스킬 제거
+  npx go-sdlc-gan list                   설치 현황 확인
 
 프로젝트 스코프 설치 (대상 프로젝트의 .claude/):
-  npx go-sdlc --project              현재 디렉토리에 설치
-  npx go-sdlc --project /some/path   지정 경로에 설치
-  npx go-sdlc uninstall --project    현재 디렉토리에서 제거
-  npx go-sdlc list --project         프로젝트 설치 현황
+  npx go-sdlc-gan --project              현재 디렉토리에 설치
+  npx go-sdlc-gan --project /some/path   지정 경로에 설치
+  npx go-sdlc-gan uninstall --project    현재 디렉토리에서 제거
+  npx go-sdlc-gan list --project         프로젝트 설치 현황
 
 기타:
-  npx go-sdlc help                   이 도움말 출력
+  npx go-sdlc-gan help                   이 도움말 출력
 `);
 }
 

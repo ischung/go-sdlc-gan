@@ -128,29 +128,61 @@ git checkout -b BRANCH_NAME
 
 ---
 
-## Step 4 — 코드 구현
+## Step 4 — 코드 구현 (Generator, iter = 1)
 
 이슈가 E2E 관련인 경우(제목·본문에 `e2e`, `playwright`, `cypress`, `end-to-end` 포함),
 `github-flow-impl` 스킬의 **Step 4-0(E2E 이슈 감지 및 앱 분석)** 서브스텝을 먼저 실행하여
 앱 라우트·컴포넌트·dev 서버 정보를 분석하고 playwright 테스트 파일을 자동 생성한다.
 테스트 파일 생성 완료 후 아래 일반 구현 절차를 이어서 진행한다.
 
-`github-flow-impl` 스킬의 Step 4와 동일한 방식으로 진행한다:
-- 프로젝트 구조 파악 (기존 코드 컨벤션 준수)
-- 이슈의 수락 기준(AC) 또는 이슈 설명을 기준으로 구현
-- 기존 테스트 패턴 참고
+이후 `github-flow-impl` 스킬의 **Step 4**와 동일하게 진행한다 — `sdlc-code-generator` 서브에이전트(Sonnet 4.6) 호출.
+`--no-eval` 플래그가 있으면 Claude가 직접 구현.
 
 ---
 
-## Step 5 — 로컬 테스트
+## Step 4.5 — Contracting (AC → TC 잠금)
+
+> `--no-eval` 모드에서는 건너뛴다.
+
+`github-flow-impl` 스킬의 **Step 4.5** 절차를 그대로 수행한다.
+`sdlc-contracting` 서브에이전트(Sonnet 4.6)를 호출하여 `docs/evaluations/issue-<N>/sprint-contract.md`를 생성·승인한다.
+
+---
+
+## Step 5 — 로컬 테스트 (Generator 자가 검증)
 
 ```bash
-npm run build 2>/dev/null || yarn build 2>/dev/null || true
-npm test 2>/dev/null || yarn test 2>/dev/null || true
+npm run build 2>&1 | tail -80
+npm test 2>&1 | tail -120
 ```
 
-테스트 실패 시 코드 수정 후 1회 재실행한다.
-여전히 실패 시 사용자에게 보고하고 중단한다.
+`github-flow-impl` 스킬의 **Step 5**와 동일하게, build/test 결과를 stdout에 보존하고 **중단하지 않고** Step 5.5로 넘어간다(Evaluator가 판정).
+`--no-eval` 모드에서는 기존 동작(실패 시 1회 재시도 후 중단)을 따른다.
+
+---
+
+## Step 5.5 — Evaluator (QA 채점)
+
+> `--no-eval` 모드에서는 건너뛴다.
+
+`github-flow-impl` 스킬의 **Step 5.5** 절차를 그대로 수행한다.
+`sdlc-code-evaluator` 서브에이전트(Opus 4.7)를 호출하여 `qa-report-iter-<K>.md`를 생성한다.
+
+---
+
+## Step 5.6 — 분기 (로컬 GAN 루프 제어)
+
+> `--no-eval` 모드에서는 건너뛴다.
+
+`github-flow-impl` 스킬의 **Step 5.6** 분기 로직을 그대로 따른다:
+- `VERDICT=PASS` → Step 6 (PR 생성)
+- `VERDICT=FAIL` AND iter 미만 → Step 4로 재진입 (feedback 주입)
+- `VERDICT=FAIL` AND (iter 초과 OR plateau) → 사용자 회부, Step 7 진입 금지
+
+> **중요 — 두 개의 독립 루프**:
+> - **로컬 GAN 루프 (Step 4 ↔ 5.5)**: 비즈니스 로직·사용자 가치 검증. `IMPL_ITER_MAX=3`.
+> - **원격 CI 루프 (Step 7)**: 파이프라인·환경 호환성. `RETRY_COUNT=3`.
+> 두 카운터는 **독립**이며, 로컬 루프를 통과한 뒤에만 원격 루프에 진입한다.
 
 ---
 

@@ -1,0 +1,65 @@
+# Changelog
+
+모든 변경 사항은 이 파일에 기록됩니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따르며, 버전 관리는 [Semantic Versioning](https://semver.org/lang/ko/)을 따릅니다.
+
+---
+
+## [1.0.0] — 2026-04-19
+
+### 추가
+
+#### GAN Generator-Evaluator 품질 루프 (핵심 신규 기능)
+
+- **`sdlc-contracting` 서브에이전트** (`model: sonnet`): 이슈의 Acceptance Criteria를 테스트 가능한 명제(TC)로 번역하여 `docs/evaluations/issue-<N>/sprint-contract.md`에 잠금. `/implement` Step 4.5에서 호출.
+- **`sdlc-code-generator` 서브에이전트** (`model: sonnet`): sprint-contract의 TC를 충족시키는 코드 생성 또는 이전 qa-report feedback 반영 재구현. `/implement` Step 4 / 재진입에서 호출.
+- **`sdlc-code-evaluator` 서브에이전트** (`model: opus`): 실제 명령 출력(`npm test`, `git diff`)을 인용하며 7항목 rubric으로 채점, `qa-report-iter-<K>.md` 생성. `/implement` Step 5.5에서 호출.
+- **7항목 평가 rubric**: TC Pass Rate, Build & Test Health, AC Coverage, Code Hygiene, Scope Discipline, Regression Safety, User Value Trace. PASS 조건: 평균 ≥ 8.0 AND 모든 항목 ≥ 6.0.
+- **파일 기반 상태 공유** (`docs/evaluations/issue-<N>/`): 세션이 끊겨도 중단점부터 루프를 재개할 수 있음.
+- **plateau 감지**: iter간 평균 상승폭 < 0.3이면 조기 중단, Evaluator가 "해결 불가 사유" 명시.
+- **PR 본문 자동 첨부**: qa-report 점수 궤적 (예: `5.6 → 7.2 → 8.1`) 포함.
+
+#### `/implement` 스킬 개선 (`github-flow-impl`)
+
+- Step 4.5 (Contracting), Step 5.5 (Evaluator), Step 5.6 (분기) 삽입.
+- **GAN 루프 제어 플래그** 추가:
+
+  | 플래그 | 기본값 | 설명 |
+  |--------|--------|------|
+  | `--no-eval` | — | GAN 루프 건너뜀 (레거시 호환) |
+  | `--eval-threshold <N>` | `8.0` | rubric 평균 임계값 |
+  | `--eval-max-iter <N>` | `3` | 최대 반복 횟수 |
+  | `--eval-economy` | — | Evaluator를 Sonnet으로 전환 (~$1.2/이슈) |
+  | `--eval-strict` | — | Generator도 Opus로 전환 (~$6.0/이슈) |
+
+- 루프 상수 명시: `IMPL_ITER_MAX=3`, `EVAL_THRESHOLD=8.0`, `EVAL_ITEM_MIN=6.0`, `PLATEAU_EPS=0.3`.
+
+#### `/ship` · `/ship-all` 스킬 개선 (`auto-ship`)
+
+- 로컬 GAN 루프(Step 4.5/5.5/5.6)를 `github-flow-impl`에 위임.
+- 두 독립 피드백 루프 명세: 로컬 GAN 루프(비즈니스 로직) ↔ 원격 CI 루프(파이프라인). 각각 독립 카운터(`IMPL_ITER_MAX` / `RETRY_COUNT`).
+
+#### 설치 관리 (`bin/install.js`)
+
+- `dist/agents/*.md` → `.claude/agents/` 복사 루프 추가 (기존 skills/commands에 이어 agents 처리).
+- `list` / `uninstall` 명령에 agents 대칭 처리 추가.
+- **버전 메타 파일** (`go-sdlc-gan.json`): 설치 시 버전·날짜·스코프 기록, `list`에서 표시, `uninstall` 시 제거.
+- 배너 동적 버전 표시 (`v${PKG_VERSION}`).
+- `help` 명령에 버전별 설치/제거 구문 추가.
+
+#### 패키지 이름 변경
+
+- `go-sdlc` → **`go-sdlc-gan`** (package.json `name`, `bin`, repository/homepage/bugs URL 일괄 변경).
+
+---
+
+## 비용 참고 (이슈 1건당 추정)
+
+| 구성 | Generator | Evaluator | 대략 비용 |
+|------|:---------:|:---------:|:--------:|
+| 기본 | Sonnet 4.6 | Opus 4.7 | ~$1.9 |
+| `--eval-economy` | Sonnet 4.6 | Sonnet 4.6 | ~$1.2 |
+| `--eval-strict` | Opus 4.7 | Opus 4.7 | ~$6.0 |
+
+---
+
+[1.0.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.0

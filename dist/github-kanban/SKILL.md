@@ -93,28 +93,42 @@ fi
 
 ### 3단계: Status 컬럼 구성 (Todo / In Progress / Review / Done)
 
-기본 Status 필드의 현재 옵션을 확인한 후, 필요한 4개 상태가 없으면 GraphQL로 추가한다.
+기본 Status 필드의 현재 옵션을 확인한 후, Review가 없으면 GraphQL로 4개 옵션을 전부 재설정한다.
 
 ```bash
-# Status 필드 현재 옵션 확인
-gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
-  jq '.fields[] | select(.name=="Status") | .options[].name'
-
 # Status 필드 ID 획득
 FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
   jq -r '.fields[] | select(.name=="Status") | .id')
 
-# 4개 상태 옵션 설정 (GraphQL)
-gh api graphql -f query='
-  mutation($fieldId: ID!) {
-    updateProjectV2Field(input: {
-      fieldId: $fieldId
-      singleSelectOptions: ["Todo", "In Progress", "Review", "Done"]
-    }) {
-      projectV2Field { id }
+# Review 옵션 존재 여부 확인
+HAS_REVIEW=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
+  jq -r '.fields[] | select(.name=="Status") | .options[].name' | grep -c "Review" || echo "0")
+
+if [ "$HAS_REVIEW" -eq "0" ]; then
+  # 4개 상태 옵션 설정 — singleSelectOptions는 객체 배열이어야 함 (plain string 불가)
+  gh api graphql -f query='
+    mutation($fieldId: ID!) {
+      updateProjectV2Field(input: {
+        fieldId: $fieldId
+        singleSelectOptions: [
+          {name: "Todo",        color: GRAY,   description: ""},
+          {name: "In Progress", color: YELLOW, description: ""},
+          {name: "Review",      color: BLUE,   description: ""},
+          {name: "Done",        color: GREEN,  description: ""}
+        ]
+      }) {
+        projectV2Field {
+          ... on ProjectV2SingleSelectField {
+            options { id name }
+          }
+        }
+      }
     }
-  }
-' -f fieldId="$FIELD_ID"
+  ' -f fieldId="$FIELD_ID"
+  echo "Status 옵션 설정 완료 (Todo / In Progress / Review / Done)"
+else
+  echo "Review 옵션이 이미 존재합니다. 덮어쓰기 건너뜀."
+fi
 ```
 
 필요한 4개 상태:

@@ -372,7 +372,7 @@ FAILED_LOG_SUMMARY (최대 20줄)
 
 ---
 
-## Step 8 — 자동 머지 및 완료 보고
+## Step 8 — 자동 머지 및 칸반 Done 이동
 
 CI/CD 전체 통과 시, 즉시 PR을 자동으로 머지한다:
 
@@ -388,7 +388,29 @@ gh pr merge "$PR_URL" --squash --delete-branch
    수동으로 머지해 주세요.
 ```
 
-머지 성공 시:
+머지 성공 시 **즉시 칸반 이슈를 Done으로 직접 이동**한다:
+
+```bash
+# Done 옵션 ID 획득
+PROJECT_ID=$(gh project list --owner "$OWNER" --format json | \
+  jq -r ".projects[] | select(.number==$PROJECT_NUMBER) | .id")
+
+STATUS_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
+  jq -r '.fields[] | select(.name=="Status") | .id')
+
+DONE_OPTION_ID=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
+  jq -r '.fields[] | select(.name=="Status") | .options[] | select(.name=="Done") | .id')
+
+gh project item-edit \
+  --id "$ITEM_ID" \
+  --field-id "$STATUS_FIELD_ID" \
+  --project-id "$PROJECT_ID" \
+  --single-select-option-id "$DONE_OPTION_ID"
+```
+
+> `ITEM_ID`는 Step 2(In Progress 이동) 시점에 획득한 값을 그대로 사용한다.
+
+완료 보고:
 
 ```
 ✅ Ship 완료!
@@ -398,7 +420,8 @@ gh pr merge "$PR_URL" --squash --delete-branch
 🔗 PR:     PR_URL
 🔁 재시도: RETRY_COUNT회
 ✔️  CI/CD:  전체 통과
-🔀 머지:   자동 squash 머지 완료 → 칸반 Done 자동 이동
+🔀 머지:   자동 squash 머지 완료
+📋 칸반:   Done 이동 완료
 ```
 
 ---

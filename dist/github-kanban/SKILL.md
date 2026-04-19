@@ -93,23 +93,47 @@ fi
 
 ### 3단계: Status 컬럼 구성 (Todo / In Progress / Review / Done)
 
-기본 Status 필드의 현재 옵션을 확인한 후, Review가 없으면 GraphQL로 4개 옵션을 전부 재설정한다.
+GitHub Projects V2의 기본 Status 필드는 `updateProjectV2Field`로 수정이 불가능하다.
+대신 **기존 Status 필드를 삭제하고, 4개 옵션을 가진 새 Status 필드를 생성**하는 방식을 사용한다.
+
+> 이 단계는 이슈를 보드에 추가(4단계)하기 전에 실행하므로 데이터 손실이 없다.
 
 ```bash
-# Status 필드 ID 획득
+# Project node ID 획득
+PROJECT_ID=$(gh project list --owner "$OWNER" --format json | \
+  jq -r ".projects[] | select(.number==$PROJECT_NUMBER) | .id")
+
+# 기존 Status 필드 ID 획득
 FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
   jq -r '.fields[] | select(.name=="Status") | .id')
 
 # Review 옵션 존재 여부 확인
 HAS_REVIEW=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
-  jq -r '.fields[] | select(.name=="Status") | .options[].name' | grep -c "Review" || echo "0")
+  jq -r '.fields[] | select(.name=="Status") | .options[].name' | grep -c "Review" || true)
 
-if [ "$HAS_REVIEW" -eq "0" ]; then
-  # 4개 상태 옵션 설정 — singleSelectOptions는 객체 배열이어야 함 (plain string 불가)
+if [ "$HAS_REVIEW" -gt "0" ]; then
+  echo "Review 옵션이 이미 존재합니다."
+else
+  echo "기존 Status 필드 삭제 후 4개 옵션으로 재생성합니다..."
+
+  # 기존 Status 필드 삭제
   gh api graphql -f query='
     mutation($fieldId: ID!) {
-      updateProjectV2Field(input: {
-        fieldId: $fieldId
+      deleteProjectV2Field(input: { fieldId: $fieldId }) {
+        projectV2Field { id }
+      }
+    }
+  ' -f fieldId="$FIELD_ID"
+
+  sleep 1
+
+  # 4개 옵션을 가진 새 Status 필드 생성
+  gh api graphql -f query='
+    mutation($projectId: ID!) {
+      createProjectV2Field(input: {
+        projectId: $projectId
+        dataType: SINGLE_SELECT
+        name: "Status"
         singleSelectOptions: [
           {name: "Todo",        color: GRAY,   description: ""},
           {name: "In Progress", color: YELLOW, description: ""},
@@ -119,15 +143,25 @@ if [ "$HAS_REVIEW" -eq "0" ]; then
       }) {
         projectV2Field {
           ... on ProjectV2SingleSelectField {
-            options { id name }
+            id name options { id name }
           }
         }
       }
     }
-  ' -f fieldId="$FIELD_ID"
-  echo "Status 옵션 설정 완료 (Todo / In Progress / Review / Done)"
-else
-  echo "Review 옵션이 이미 존재합니다. 덮어쓰기 건너뜀."
+  ' -f projectId="$PROJECT_ID"
+
+  sleep 1
+
+  # 결과 검증
+  HAS_REVIEW_NOW=$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json | \
+    jq -r '.fields[] | select(.name=="Status") | .options[].name' | grep -c "Review" || true)
+
+  if [ "$HAS_REVIEW_NOW" -gt "0" ]; then
+    echo "✅ Status 필드 생성 완료 (Todo / In Progress / Review / Done)"
+  else
+    echo "⚠️  자동 설정 실패. GitHub Projects UI에서 수동으로 추가해 주세요:"
+    echo "   보드 Settings → Fields → Status → Add option → 'Review'"
+  fi
 fi
 ```
 

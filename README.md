@@ -101,8 +101,8 @@ npx github:ischung/go-sdlc-gan --project /path
 
 ```bash
 # GitHub 태그를 사용한 버전 고정 (권장)
-npx github:ischung/go-sdlc-gan#v1.2.0                    # 전역
-npx github:ischung/go-sdlc-gan#v1.2.0 --project          # 프로젝트 스코프
+npx github:ischung/go-sdlc-gan#v1.3.0                    # 전역
+npx github:ischung/go-sdlc-gan#v1.3.0 --project          # 프로젝트 스코프
 
 # npm 레지스트리 게시 후 사용 가능한 방식
 npx go-sdlc-gan@1.0.0
@@ -115,7 +115,8 @@ npx go-sdlc-gan@1.0.0 --project
 
 | 버전 | 주요 변경 | 비고 |
 |------|-----------|------|
-| **v1.2.0** | `/ship`·`/ship-all` GAN 루프 실제 실행 보장 — Task 호출 코드 직접 내장 | 현재 최신 |
+| **v1.3.0** | Task 툴 차단 해제 → GAN 에이전트 실제 동작 + Review 컬럼 생성 수정 + Done 직접 이동 | 현재 최신 |
+| v1.3.0 | `/ship`·`/ship-all` GAN 루프 실제 실행 보장 — Task 호출 코드 직접 내장 | — |
 | v1.1.0 | `/ship-all` GAN 루프 기본 활성화 + Review 컬럼 생성 버그 수정 | — |
 | v1.0.1 | SKILL.md 단순화 — 중복 제거·과도한 설명 압축 (-244줄, 기능 동일) | — |
 | v1.0.0 | GAN Generator-Evaluator 루프 + 서브에이전트 3종 도입 | — |
@@ -170,7 +171,7 @@ npx github:ischung/go-sdlc-gan list --project    # 프로젝트 스코프 설치
 출력 예시:
 
 ```
-  ✔  설치된 버전: v1.2.0  (설치일: 2026-04-19)
+  ✔  설치된 버전: v1.3.0  (설치일: 2026-04-19)
   ...
   ✔  스킬: github-flow-impl
        ✔  /implement
@@ -182,7 +183,7 @@ npx github:ischung/go-sdlc-gan list --project    # 프로젝트 스코프 설치
   ✔  sdlc-code-evaluator
 ```
 
-설치된 버전(`v1.2.0`)과 현재 패키지 버전이 다르면 **업데이트 경고**가 표시됩니다. 서브에이전트 3종이 모두 `✔`가 아니면 GAN 루프가 동작하지 않으니 재설치하세요.
+설치된 버전(`v1.3.0`)과 현재 패키지 버전이 다르면 **업데이트 경고**가 표시됩니다. 서브에이전트 3종이 모두 `✔`가 아니면 GAN 루프가 동작하지 않으니 재설치하세요.
 
 ---
 
@@ -794,13 +795,13 @@ flowchart LR
 npx github:ischung/go-sdlc-gan uninstall
 
 # 특정 버전 제거
-npx github:ischung/go-sdlc-gan#v1.2.0 uninstall
+npx github:ischung/go-sdlc-gan#v1.3.0 uninstall
 
 # 프로젝트 스코프 제거 (현재 디렉토리)
 npx github:ischung/go-sdlc-gan uninstall --project
 
 # 특정 버전 + 프로젝트 스코프 제거
-npx github:ischung/go-sdlc-gan#v1.2.0 uninstall --project
+npx github:ischung/go-sdlc-gan#v1.3.0 uninstall --project
 
 # 지정 경로 제거
 npx github:ischung/go-sdlc-gan uninstall --project /path

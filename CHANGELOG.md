@@ -4,6 +4,20 @@
 
 ---
 
+## [1.3.0] — 2026-04-19
+
+### 수정
+
+- **`/ship` · `/ship-all` · `/implement` Task 툴 차단 해제**: `allowed-tools: Bash(git *), Bash(gh *)` 제한이 `Task` 툴을 막아 `sdlc-code-generator`, `sdlc-contracting`, `sdlc-code-evaluator` 서브에이전트가 호출되지 않던 근본 원인 수정. 세 커맨드 파일에서 `allowed-tools` 줄 제거 → 모든 툴 허용.
+- **`github-kanban` Review 컬럼 생성 방식 변경**: `updateProjectV2Field`(기본 Status 필드에서 동작 안 함) → `deleteProjectV2Field` + `createProjectV2Field` 방식으로 교체. 결과 검증 및 실패 시 수동 안내 추가.
+
+### 추가
+
+- **`/ship` · `/ship-all` Step 8 Done 직접 이동**: 머지 후 GitHub Actions에만 의존하지 않고 `gh project item-edit`로 Done을 직접 이동. 워크플로우 미설정 환경에서도 칸반 Done 이동 보장.
+- **GAN 루프 에이전트 호출 시 상태 메시지 출력**: `sdlc-code-generator`, `sdlc-contracting`, `sdlc-code-evaluator` 호출 전 `🤖 [Generator]`, `📋 [Contracting]`, `🔍 [Evaluator]` 메시지 출력. `/implement`·`/ship`·`/ship-all` 모두 적용.
+
+---
+
 ## [1.2.0] — 2026-04-19
 
 ### 추가
@@ -99,6 +113,7 @@
 
 ---
 
+[1.3.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.1.0
 [1.0.1]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.1

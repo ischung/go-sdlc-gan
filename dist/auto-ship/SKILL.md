@@ -53,15 +53,133 @@ description: >
 
 ---
 
-## Step 0~6 — github-flow-impl 위임
+## Step 0~3 — github-flow-impl 위임
 
-`github-flow-impl` 스킬의 **Step 0~Step 6 전체**를 그대로 실행한다.
-**GAN 루프(Step 4.5 Contracting, Step 5.5 Evaluator, Step 5.6 분기)는 위임에 포함되며 반드시 실행한다.**
+`github-flow-impl` 스킬의 **Step 0~Step 3**(환경 감지·칸반 자동화·이슈 선정·In Progress 이동·브랜치 생성)을 그대로 실행한다.
 
 **auto-ship에서의 차이점:**
 - `/ship`·`/ship-all`은 `--inline` 모드(모드 C)를 지원하지 않는다.
-- Step 6 PR 생성 후 **칸반을 Review로 이동하지 않는다** (자동 머지까지 진행하기 때문).
-- Step 6 완료 시 `PR_URL`을 Step 7에서 사용할 수 있도록 반드시 보존한다.
+
+---
+
+## Step 4 — 코드 구현 (Generator, iter = 1)
+
+먼저 프로젝트 구조를 파악한다:
+
+```bash
+find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" \) \
+  | grep -v node_modules | grep -v .git | head -30
+cat package.json 2>/dev/null || true
+```
+
+`--no-eval` 플래그가 없으면 `sdlc-code-generator` 서브에이전트를 Task tool로 호출한다:
+
+```
+Task({
+  subagent_type: "sdlc-code-generator",
+  description: "이슈 #<N> 최초 구현",
+  prompt: "ITER_K=1. 이슈 본문·AC 기반으로 최초 구현. sprint-contract.md는 Step 4.5에서 생성될 예정이므로 이번 단계에서는 AC를 직접 참조한다. Non-goals는 이슈 본문의 out-of-scope 문구를 따른다."
+})
+```
+
+`--no-eval` 모드이거나 Task 호출이 불가능한 환경이면 Claude가 직접 AC 기준으로 구현한다.
+
+---
+
+## Step 4.5 — Contracting (AC → TC 잠금)
+
+> **`--no-eval` 모드에서는 건너뛴다.**
+
+`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다:
+
+```
+Task({
+  subagent_type: "sdlc-contracting",
+  description: "이슈 #<N> AC → TC 번역 및 계약 잠금",
+  prompt: "ISSUE_NUMBER=<N>. 이슈 본문과 AC를 읽어 docs/evaluations/issue-<N>/sprint-contract.md를 생성한다. TC 5~10개, Non-goals, Definition of Done 포함."
+})
+```
+
+출력 시그널이 `CONTRACT_OK`로 시작하면 sprint-contract.md를 Read로 읽어 사용자에게 보여주고 **승인 A/수정/건너뛰기** 중 선택을 받는다. 승인된 계약은 이번 이슈의 모든 iteration 동안 불변이다.
+
+---
+
+## Step 5 — 로컬 테스트 (Generator 자가 검증)
+
+```bash
+npm run build 2>&1 | tail -80
+npm test 2>&1 | tail -120
+```
+
+결과를 stdout으로 저장해둔다. Step 5.5의 Evaluator가 동일한 로그를 참조한다.
+build/test가 실패해도 중단하지 않고 Step 5.5로 진행한다 — `--no-eval` 모드에서는 1회 재시도 후 중단.
+
+---
+
+## Step 5.5 — Evaluator (QA 채점)
+
+> **`--no-eval` 모드에서는 건너뛴다.**
+
+`sdlc-code-evaluator` 서브에이전트를 Task tool로 호출한다 (기본 **Opus 4.7**, `--eval-economy` 시 Sonnet):
+
+```
+Task({
+  subagent_type: "sdlc-code-evaluator",
+  description: "이슈 #<N> iter <K> 평가",
+  prompt: "ISSUE_NUMBER=<N>, ITER_K=<K>, EVAL_THRESHOLD=<T>, EVAL_ITEM_MIN=<M>. sprint-contract.md의 TC를 기준으로 현재 working tree를 채점. build/test 로그와 git diff를 실제로 실행해 근거로 인용할 것."
+})
+```
+
+출력 시그널 파싱:
+```
+EVAL_DONE docs/evaluations/issue-<N>/qa-report-iter-<K>.md
+AVERAGE <평균>
+MIN_ITEM <최저>
+VERDICT <PASS|FAIL>
+PLATEAU <YES|NO|N/A>
+```
+
+---
+
+## Step 5.6 — 분기 (루프 제어)
+
+> **`--no-eval` 모드에서는 건너뛴다.**
+
+### Case 1: `VERDICT=PASS`
+→ Step 6(PR 생성)으로 진행. PR 본문에 qa-report 점수 궤적을 첨부한다.
+
+### Case 2: `VERDICT=FAIL` AND `K < IMPL_ITER_MAX`
+→ Step 4 재진입(`ITER_K = K+1`). 최신 qa-report의 "Generator Feedback" 섹션을 주입한다:
+
+```
+Task({
+  subagent_type: "sdlc-code-generator",
+  description: "이슈 #<N> iter <K+1> 재구현 (feedback 반영)",
+  prompt: "ITER_K=<K+1>. 최신 qa-report: docs/evaluations/issue-<N>/qa-report-iter-<K>.md. '우선 수정' 섹션 순서대로 처리. '건드리지 말 것' 준수. sprint-contract.md는 수정 금지."
+})
+```
+
+재진입 후 Step 5 → Step 5.5 → Step 5.6을 다시 수행.
+
+### Case 3: `VERDICT=FAIL` AND (`K == IMPL_ITER_MAX` OR `PLATEAU=YES`)
+→ 루프 중단 후 아래를 출력하고 `/ship-all`이면 해당 이슈를 FAILED_LIST에 기록 후 다음 이슈로 진행:
+
+```
+⚠️  GAN 루프 한계 도달 (iter <K>/<MAX>, plateau=<YES|NO>)
+
+이슈:     #<N> <TITLE>
+평균 궤적: <iter1> → <iter2> → ... → <iterK>
+최종 리포트: docs/evaluations/issue-<N>/qa-report-iter-<K>.md
+
+재시도: /ship #<N> --eval-threshold 7.0
+```
+
+---
+
+## Step 6 — PR 생성 (github-flow-impl 위임)
+
+`github-flow-impl` 스킬의 **Step 6**을 실행하되, **칸반을 Review로 이동하지 않는다** (자동 머지까지 진행하기 때문).
+`PR_URL`을 Step 7에서 사용할 수 있도록 반드시 보존한다.
 
 > **두 개의 독립 루프**:
 > - **로컬 GAN 루프 (Step 4~5.6)**: 비즈니스 로직·사용자 가치 검증. `IMPL_ITER_MAX=3`.

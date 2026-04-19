@@ -4,6 +4,15 @@
 
 ---
 
+## [1.2.0] — 2026-04-19
+
+### 추가
+
+- **`/ship` · `/ship-all` GAN 루프 실제 실행 보장** (`auto-ship`): 기존에는 위임 문구만 있어 AI가 `sdlc-code-generator`, `sdlc-contracting`, `sdlc-code-evaluator` 에이전트를 실제로 호출하지 않는 문제가 있었음. `auto-ship/SKILL.md`에 Step 4(Generator 구현), Step 4.5(Contracting), Step 5(로컬 테스트), Step 5.5(Evaluator 채점), Step 5.6(루프 분기)의 Task 호출 코드를 명시적으로 추가. 이제 `/ship`, `/ship-all` 실행 시 세 서브에이전트가 확실히 호출됨.
+- Step 0~3(환경 감지·이슈 선정·브랜치 생성)과 Step 6(PR 생성)은 `github-flow-impl` 위임 유지. GAN 루프 구간만 auto-ship에 직접 내장.
+
+---
+
 ## [1.1.0] — 2026-04-19
 
 ### 수정
@@ -90,6 +99,7 @@
 
 ---
 
+[1.2.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.1.0
 [1.0.1]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.1
 [1.0.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.0

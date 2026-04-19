@@ -1,7 +1,6 @@
 ---
 description: Todo 이슈 전체를 DAG 레벨 순서에 따라 순차적으로 ship(구현+CI/CD 통과)합니다. 사용법: /ship-all [--skip #N] [플래그]
 argument-hint: "[--skip #이슈번호] [--no-eval] [--eval-threshold <N>] [--eval-economy] [--eval-strict]"
-allowed-tools: Bash(git *), Bash(gh *)
 ---
 
 `auto-ship` 스킬의 지침에 따라 Todo 이슈 전체를 처리하라.

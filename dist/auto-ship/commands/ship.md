@@ -1,7 +1,6 @@
 ---
 description: 단일 이슈를 구현하고 CI/CD 파이프라인을 통과할 때까지 자동으로 처리합니다. 사용법: /ship [#이슈번호] [플래그]
 argument-hint: "[#이슈번호] [--no-eval] [--eval-threshold <N>] [--eval-economy] [--eval-strict]"
-allowed-tools: Bash(git *), Bash(gh *)
 ---
 
 `auto-ship` 스킬의 지침에 따라 아래 인자를 처리하라.

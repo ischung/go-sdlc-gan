@@ -1,7 +1,6 @@
 ---
 description: GitHub Flow에 따라 이슈를 end-to-end로 자동 구현 (브랜치 → 구현 → GAN 루프 → 테스트 → PR)
 argument-hint: "[#이슈번호 | --inline 이슈내용] [--no-eval] [--eval-threshold N] [--eval-max-iter N] [--eval-economy | --eval-strict]"
-allowed-tools: Bash(git *), Bash(gh *)
 ---
 
 `github-flow-impl` 스킬의 지침에 따라 아래 인자를 처리하라.

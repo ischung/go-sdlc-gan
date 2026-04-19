@@ -101,8 +101,8 @@ npx github:ischung/go-sdlc-gan --project /path
 
 ```bash
 # GitHub 태그를 사용한 버전 고정 (권장)
-npx github:ischung/go-sdlc-gan#v1.1.0                    # 전역
-npx github:ischung/go-sdlc-gan#v1.1.0 --project          # 프로젝트 스코프
+npx github:ischung/go-sdlc-gan@1.1.0                    # 전역
+npx github:ischung/go-sdlc-gan@1.1.0 --project          # 프로젝트 스코프
 
 # npm 레지스트리 게시 후 사용 가능한 방식
 npx go-sdlc-gan@1.0.0
@@ -793,13 +793,13 @@ flowchart LR
 npx github:ischung/go-sdlc-gan uninstall
 
 # 특정 버전 제거
-npx github:ischung/go-sdlc-gan#v1.1.0 uninstall
+npx github:ischung/go-sdlc-gan@1.1.0 uninstall
 
 # 프로젝트 스코프 제거 (현재 디렉토리)
 npx github:ischung/go-sdlc-gan uninstall --project
 
 # 특정 버전 + 프로젝트 스코프 제거
-npx github:ischung/go-sdlc-gan#v1.1.0 uninstall --project
+npx github:ischung/go-sdlc-gan@1.1.0 uninstall --project
 
 # 지정 경로 제거
 npx github:ischung/go-sdlc-gan uninstall --project /path

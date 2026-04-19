@@ -33,9 +33,30 @@ description: >
 
 ---
 
+## GAN 루프 상수 (기본값)
+
+> **`/ship`과 `/ship-all`은 GAN 루프가 기본으로 활성화된다.** `--no-eval`을 명시해야만 건너뛴다.
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `IMPL_ITER_MAX` | `3` | Generator ↔ Evaluator 최대 반복 횟수 |
+| `EVAL_THRESHOLD` | `8.0` | rubric 평균 임계값 |
+| `EVAL_ITEM_MIN` | `6.0` | rubric 각 항목 하한 |
+| `PLATEAU_EPS` | `0.3` | iter간 상승폭이 이 값 미만이면 정체, 조기 중단 |
+
+커맨드 플래그로 오버라이드 가능:
+- `--no-eval` — GAN 루프 전체 건너뛰기
+- `--eval-threshold <N>` — `EVAL_THRESHOLD` 변경
+- `--eval-max-iter <N>` — `IMPL_ITER_MAX` 변경
+- `--eval-economy` — Evaluator를 Sonnet으로 전환 (비용 절감)
+- `--eval-strict` — Generator도 Opus로 전환 (최고 품질)
+
+---
+
 ## Step 0~6 — github-flow-impl 위임
 
 `github-flow-impl` 스킬의 **Step 0~Step 6 전체**를 그대로 실행한다.
+**GAN 루프(Step 4.5 Contracting, Step 5.5 Evaluator, Step 5.6 분기)는 위임에 포함되며 반드시 실행한다.**
 
 **auto-ship에서의 차이점:**
 - `/ship`·`/ship-all`은 `--inline` 모드(모드 C)를 지원하지 않는다.
@@ -45,7 +66,7 @@ description: >
 > **두 개의 독립 루프**:
 > - **로컬 GAN 루프 (Step 4~5.6)**: 비즈니스 로직·사용자 가치 검증. `IMPL_ITER_MAX=3`.
 > - **원격 CI 루프 (Step 7)**: 파이프라인·환경 호환성. `RETRY_COUNT=3`.
-> 두 카운터는 **독립**이며, 로컬 루프를 통과한 뒤에만 원격 루프에 진입한다.
+> 두 카운터는 **독립**이며, 로컬 GAN 루프를 통과한 뒤에만 원격 CI 루프에 진입한다.
 
 ---
 

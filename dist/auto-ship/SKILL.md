@@ -72,7 +72,12 @@ find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" 
 cat package.json 2>/dev/null || true
 ```
 
-`--no-eval` 플래그가 없으면 `sdlc-code-generator` 서브에이전트를 Task tool로 호출한다:
+`--no-eval` 플래그가 없으면 `sdlc-code-generator` 서브에이전트를 Task tool로 호출한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+🤖 [Generator] sdlc-code-generator 실행 중... (iter 1 / IMPL_ITER_MAX)
+```
 
 ```
 Task({
@@ -90,7 +95,12 @@ Task({
 
 > **`--no-eval` 모드에서는 건너뛴다.**
 
-`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다:
+`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+📋 [Contracting] sdlc-contracting 실행 중... (AC → TC 계약 잠금)
+```
 
 ```
 Task({
@@ -120,7 +130,12 @@ build/test가 실패해도 중단하지 않고 Step 5.5로 진행한다 — `--n
 
 > **`--no-eval` 모드에서는 건너뛴다.**
 
-`sdlc-code-evaluator` 서브에이전트를 Task tool로 호출한다 (기본 **Opus 4.7**, `--eval-economy` 시 Sonnet):
+`sdlc-code-evaluator` 서브에이전트를 Task tool로 호출한다 (기본 **Opus 4.7**, `--eval-economy` 시 Sonnet).
+호출 전 아래 메시지를 출력한다:
+
+```
+🔍 [Evaluator] sdlc-code-evaluator 실행 중... (iter K / IMPL_ITER_MAX 채점)
+```
 
 ```
 Task({
@@ -150,6 +165,12 @@ PLATEAU <YES|NO|N/A>
 
 ### Case 2: `VERDICT=FAIL` AND `K < IMPL_ITER_MAX`
 → Step 4 재진입(`ITER_K = K+1`). 최신 qa-report의 "Generator Feedback" 섹션을 주입한다:
+
+호출 전 아래 메시지를 출력한다:
+
+```
+🤖 [Generator] sdlc-code-generator 실행 중... (iter K+1 / IMPL_ITER_MAX — feedback 반영 재구현)
+```
 
 ```
 Task({

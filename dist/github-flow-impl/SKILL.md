@@ -524,6 +524,11 @@ cat package.json 2>/dev/null || true
 
 이후 `sdlc-code-generator` 서브에이전트를 Task tool로 호출한다 (`--no-eval` 플래그가 없을 때).
 이 에이전트는 **Sonnet 4.6**으로 실행되며, sprint-contract가 아직 없으므로 최초에는 AC 기반으로 구현한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+🤖 [Generator] sdlc-code-generator 실행 중... (iter 1 / IMPL_ITER_MAX)
+```
 
 ```
 Task({
@@ -543,7 +548,12 @@ Task({
 
 > **이 단계는 `--no-eval` 모드에서는 건너뛴다.**
 
-`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다:
+`sdlc-contracting` 서브에이전트를 Task tool로 호출하여 sprint-contract.md를 생성한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+📋 [Contracting] sdlc-contracting 실행 중... (AC → TC 계약 잠금)
+```
 
 ```
 Task({
@@ -587,6 +597,11 @@ Evaluator가 근거로 삼아 다음 iteration의 feedback을 생성한다.
 
 `sdlc-code-evaluator` 서브에이전트를 Task tool로 호출한다. 이 에이전트는 **Opus 4.7**로 실행되며,
 sprint-contract.md의 TC를 7항목 rubric으로 채점하여 `qa-report-iter-<K>.md`를 생성한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+🔍 [Evaluator] sdlc-code-evaluator 실행 중... (iter K / IMPL_ITER_MAX 채점)
+```
 
 ```
 Task({
@@ -628,7 +643,12 @@ Step 5.5의 출력 시그널을 기준으로 분기한다.
 
 ### Case 2: `VERDICT=FAIL` AND `K < IMPL_ITER_MAX`
 → **Step 4(Generator 재진입)**. 단, 이번에는 `ITER_K = K+1`로 Generator를 호출하고,
-최신 qa-report의 "Generator Feedback" 섹션을 입력으로 주입한다:
+최신 qa-report의 "Generator Feedback" 섹션을 입력으로 주입한다.
+호출 전 아래 메시지를 출력한다:
+
+```
+🤖 [Generator] sdlc-code-generator 실행 중... (iter K+1 / IMPL_ITER_MAX — feedback 반영 재구현)
+```
 
 ```
 Task({

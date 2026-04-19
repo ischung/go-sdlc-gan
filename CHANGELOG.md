@@ -4,6 +4,20 @@
 
 ---
 
+## [1.1.0] — 2026-04-19
+
+### 수정
+
+- **`github-kanban/SKILL.md`** 3단계 GraphQL mutation 버그 수정: `singleSelectOptions`에 plain string 배열을 전달하던 코드를 `{name, color, description}` 객체 배열로 교체. GitHub Projects V2 API의 `ProjectV2SingleSelectFieldOptionInput` 타입을 정확히 충족하지 않아 mutation이 조용히 실패하면서 Review 컬럼이 생성되지 않던 문제 해결. Review 옵션이 이미 존재하면 덮어쓰기를 건너뜀 guard 추가.
+
+### 추가
+
+- **`/ship-all` GAN 루프 기본 활성화** (`auto-ship`): 기존에는 `/implement` 경로에서만 GAN Generator-Evaluator 루프가 실행되었으나, 이제 `/ship`·`/ship-all`에서도 기본으로 활성화된다. 끄려면 `--no-eval` 플래그를 명시한다.
+- **`ship-all.md` 커맨드** `argument-hint`에 GAN 플래그 추가: `--no-eval`, `--eval-threshold <N>`, `--eval-economy`, `--eval-strict`.
+- **`auto-ship/SKILL.md`** GAN 루프 상수 테이블 추가 (IMPL_ITER_MAX, EVAL_THRESHOLD, EVAL_ITEM_MIN, PLATEAU_EPS) 및 위임 블록에 "GAN 루프는 반드시 실행한다" 명시.
+
+---
+
 ## [1.0.1] — 2026-04-19
 
 ### 변경 (리팩토링 — 기능 동일)
@@ -76,4 +90,6 @@
 
 ---
 
+[1.1.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.1.0
+[1.0.1]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.1
 [1.0.0]: https://github.com/ischung/go-sdlc-gan/releases/tag/v1.0.0
